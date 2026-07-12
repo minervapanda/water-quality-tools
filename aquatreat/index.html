@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AquaTreat — WTP Coagulant Dosing Calculator</title>
+<style>
+  :root{
+    --navy:#0b335e; --blue:#08519c; --red:#c0392b; --orange:#e6842e;
+    --green:#2e7d32; --grey:#555; --lgrey:#f0f3f7; --line:#d6deea;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:#1c2733;background:#eef2f7;line-height:1.45}
+  header{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:22px 20px}
+  header h1{margin:0;font-size:22px;letter-spacing:.3px}
+  header p{margin:6px 0 0;font-size:13px;opacity:.9}
+  .wrap{max-width:1000px;margin:0 auto;padding:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){
+    .grid{grid-template-columns:1fr}
+    input,select,button{font-size:16px;min-height:46px}   /* 16px stops iOS zoom-on-focus; thumb-height controls */
+    .out{position:relative}
+    header h1{font-size:19px}
+    .tab{font-size:13px}
+  }
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;
+        box-shadow:0 1px 3px rgba(11,51,94,.06)}
+  .card h2{margin:0 0 14px;font-size:15px;color:var(--navy);border-bottom:2px solid var(--lgrey);padding-bottom:8px}
+  label{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:12px 0 4px}
+  input,select{width:100%;padding:9px 10px;font-size:15px;border:1px solid var(--line);
+        border-radius:8px;background:#fff}
+  input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(8,81,156,.12)}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  .hint{font-size:11.5px;color:var(--grey);margin-top:4px}
+  .out{background:var(--navy);color:#fff;border-radius:12px;padding:18px;margin-top:18px}
+  .out h2{color:#cfe0f2;border-color:rgba(255,255,255,.15)}
+  .result-block{background:rgba(255,255,255,.07);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .result-block h3{margin:0 0 8px;font-size:14px;color:#ffd9a8}
+  .big{font-size:26px;font-weight:700;color:#fff}
+  .big small{font-size:14px;font-weight:400;opacity:.8}
+  .sub{font-size:13px;opacity:.9;margin-top:3px}
+  .note{font-size:11.5px;opacity:.75;margin-top:8px;font-style:italic}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:560px){.row2,.row3{grid-template-columns:1fr}}
+  .gauge{height:14px;border-radius:8px;margin:14px 0 4px;position:relative}
+  .gauge .pin{position:absolute;top:-5px;width:4px;height:24px;background:#12333b;border-radius:2px;transform:translateX(-50%)}
+  .out .gauge .pin{background:#fff}
+  .gauge-lbl{display:flex;justify-content:space-between;font-size:10.5px;opacity:.8}
+  .ibtable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  .ibtable th,.ibtable td{border:1px solid var(--line);padding:4px 7px;text-align:right}
+  .ibtable th{background:var(--lgrey);color:var(--navy);text-align:center}
+  .ibtable td.l{text-align:left}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge.exc{background:#d6f5d6;color:#15691b}.badge.acc{background:#fff0cc;color:#8a5b00}.badge.bad{background:#ffd2d2;color:#a10000}
+  .flag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle}
+  .flag.ok{background:rgba(46,125,50,.35);color:#c8f0cc}
+  .flag.warn{background:rgba(230,132,46,.35);color:#ffe0bd}
+  .foot{font-size:11.5px;color:var(--grey);text-align:center;margin:20px 0 8px}
+  /* ---- tabs ---- */
+  .tabs{display:flex;gap:8px;max-width:1000px;margin:16px auto 0;padding:0 18px}
+  .tab{flex:1;text-align:center;padding:13px 8px;font-size:14px;font-weight:700;cursor:pointer;
+       background:#dbe4f0;color:var(--navy);border:2px solid var(--line);border-bottom:none;
+       border-radius:12px 12px 0 0;min-height:52px;transition:background .12s}
+  .tab:hover{background:#c9d6e8}
+  .tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .tab.active .ml{color:#cfe0f2}
+  .tab .ic{font-size:18px;display:block;line-height:1.1}
+  .panel{display:none}.panel.active{display:block}
+  /* ---- field test ---- */
+  .cam-wrap{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;max-height:60vh;margin:0 auto}
+  .cam-wrap video,.cam-wrap canvas{width:100%;height:100%;object-fit:cover;display:block}
+  .roi{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:34%;height:46%;
+       border:3px solid #ffd9a8;border-radius:14px;box-shadow:0 0 0 2000px rgba(0,0,0,.28);pointer-events:none}
+  .roi.ok{border-color:#39d353}.roi.bad{border-color:#ff5a5a}
+  .roi-label{position:absolute;left:50%;top:8%;transform:translateX(-50%);color:#fff;font-size:12px;
+       background:rgba(0,0,0,.55);padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none}
+  .shutter{width:76px;height:76px;border-radius:50%;background:#fff;border:5px solid var(--blue);
+       margin:14px auto 0;display:block;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+  .shutter:disabled{opacity:.4;border-color:#999;cursor:not-allowed}
+  .stepchip{display:flex;gap:6px;justify-content:center;margin:0 0 12px;flex-wrap:wrap}
+  .stepchip span{font-size:11.5px;padding:5px 11px;border-radius:20px;background:var(--lgrey);color:var(--grey);font-weight:600}
+  .stepchip span.on{background:var(--blue);color:#fff}
+  .sop{background:var(--lgrey);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:12px}
+  .sop ol{margin:6px 0 0;padding-left:20px}.sop li{margin:4px 0}
+  .bigresult{font-size:40px;font-weight:800;text-align:center;margin:6px 0}
+  .band{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700}
+  .band.ok{background:#d6f5d6;color:#15691b}.band.low{background:#ffe6c2;color:#8a4b00}
+  .band.high{background:#cfe6ff;color:#054a91}.band.zero{background:#ffd2d2;color:#a10000}
+  .critical{position:fixed;inset:0;background:#b00020;color:#fff;z-index:999;display:none;
+       flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:24px}
+  .critical.show{display:flex}
+  .critical h2{font-size:26px;margin:0 0 8px}.critical .warnicon{font-size:64px}
+  .critical .adv{font-size:15px;max-width:520px;line-height:1.5;margin:14px 0}
+  .critical button{font-size:16px;font-weight:700;padding:14px 22px;border:none;border-radius:10px;
+       background:#fff;color:#b00020;cursor:pointer;margin-top:8px;min-height:52px;width:min(90%,340px)}
+  .ml{font-size:11px;opacity:.85;display:block}
+  .stamped{width:100%;border-radius:10px;margin-top:10px;border:1px solid var(--line)}
+  .formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:#cfe0f2;
+        background:rgba(0,0,0,.2);padding:8px 10px;border-radius:6px;margin-top:6px;white-space:pre-wrap}
+  .steps{margin:8px 0 2px;padding:0;list-style:none;counter-reset:st}
+  .steps li{position:relative;padding:5px 0 5px 26px;font-size:12.5px;line-height:1.5;border-top:1px solid rgba(255,255,255,.08)}
+  .steps li:first-child{border-top:none}
+  .steps li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:5px;
+        width:18px;height:18px;border-radius:50%;background:#ffd9a8;color:var(--navy);
+        font-size:11px;font-weight:700;text-align:center;line-height:18px}
+  .steps b{color:#fff}
+  .steps .u{color:#9ec3e8;font-size:11px}
+  .explain{font-size:11.5px;color:#cfe0f2;opacity:.85;margin:2px 0 6px;font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <h1>AquaTreat — WTP Operator Toolkit</h1>
+</header>
+
+<div class="tabs">
+  <button class="tab active" id="tabDose" onclick="showTab('dose')"><span class="ic">⚗️</span>Dosing Calculator</button>
+  <button class="tab" id="tabField" onclick="showTab('field')"><span class="ic">🧪</span>Chlorine Field Test</button>
+  <button class="tab" id="tabIonic" onclick="showTab('ionic')"><span class="ic">⚖️</span>Ionic Balance</button>
+</div>
+
+<!-- ============ PANEL 1 : DOSING CALCULATOR ============ -->
+<div class="panel active" id="panel-dose">
+<div class="wrap">
+  <div class="grid">
+    <!-- INPUTS -->
+    <div class="card">
+      <h2>1 · Raw-water turbidity</h2>
+      <label>Turbidity of water entering the WTP (NTU)</label>
+      <input id="ntu" type="number" value="100" min="0" step="any" oninput="calc()">
+      <div class="hint" id="ntuHint"></div>
+
+      <h2 style="margin-top:20px">2 · Water to be treated (flow)</h2>
+      <div class="row">
+        <div>
+          <label>Flow</label>
+          <input id="flow" type="number" value="5" min="0" step="any" oninput="calc()">
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="flowUnit" onchange="calc()">
+            <option value="MLD">MLD (million litres/day)</option>
+            <option value="UK_MGD">UK MGD (million UK gallons/day)</option>
+            <option value="US_MGD">US MGD (million US gallons/day)</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" id="flowHint"></div>
+
+      <h2 style="margin-top:20px">3 · Coagulant</h2>
+      <label>Chemical</label>
+      <select id="coag" onchange="calc()">
+        <option value="Alum Gr.IV">Alum Grade-IV</option>
+        <option value="PAC">PAC — poly-aluminium chloride (solid)</option>
+        <option value="PAC_LIQUID">PAC — liquid (enter specific gravity → L/day)</option>
+        <option value="Alum Gr.II">Alum Grade-II</option>
+      </select>
+      <div class="hint">Dose is looked up from raw-water turbidity — no manual dose entry needed.</div>
+      <div id="sgWrap" style="display:none;margin-top:10px">
+        <label>Specific gravity of liquid PAC (kg/L)</label>
+        <input id="sg" type="number" value="1.18" min="0.5" step="any" oninput="calc()">
+        <div class="hint">Litres/day = kg/day ÷ specific gravity. Typical liquid PAC ≈ 1.18.</div>
+      </div>
+
+      <h2 style="margin-top:20px">4 · Disinfection <span style="font-weight:400;font-size:12px;color:var(--grey)">(optional)</span></h2>
+      <label>Agent</label>
+      <select id="dis" onchange="calc()">
+        <option value="none">— none —</option>
+        <option value="bleaching_powder">Bleaching powder (33% available Cl)</option>
+        <option value="chlorine_gas">Chlorine gas (100%)</option>
+        <option value="custom">Other hypochlorite (set % below)</option>
+      </select>
+      <div class="row">
+        <div>
+          <label>Chlorine dose (mg/L)</label>
+          <input id="clDose" type="number" value="3" min="0" step="any" oninput="calc()">
+        </div>
+        <div id="clPctWrap" style="display:none">
+          <label>Available Cl (%)</label>
+          <input id="clPct" type="number" value="33" min="1" max="100" step="any" oninput="calc()">
+        </div>
+      </div>
+      <div class="hint" id="clHint"></div>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div class="out card">
+      <h2>Suggested dosing</h2>
+      <div class="result-block">
+        <h3 id="coagTitle">Coagulant to add</h3>
+        <div class="big" id="coagKg">—</div>
+        <div class="sub" id="coagVol"></div>
+        <ol class="steps" id="coagSteps"></ol>
+        <div class="note" id="coagNote"></div>
+      </div>
+      <div class="result-block" style="background:rgba(255,255,255,.05)">
+        <h3>Dose basis <span style="font-weight:400;font-size:11px;color:#9ec3e8">— what the dose is and where it comes from</span></h3>
+        <div class="explain">"Dose basis" = the coagulant dose read from the raw-water turbidity, before it is multiplied by the plant flow. It is the concentration of chemical the water needs.</div>
+        <div class="sub" id="doseBasis"></div>
+        <div class="sub" id="flowBasis"></div>
+        <div class="sub" id="altCoag" style="margin-top:6px;color:#cfe0f2"></div>
+      </div>
+      <div id="disOut" class="result-block" style="display:none">
+        <h3 id="disTitle">Disinfectant</h3>
+        <div class="big" id="disKg">—</div>
+        <ol class="steps" id="disSteps"></ol>
+        <div class="note" id="disNote"></div>
+      </div>
+      <div class="formula" id="formulaBox"></div>
+      <div class="result-block" style="background:rgba(255,255,255,.05)">
+        <button onclick="exportDosage()" style="width:100%;padding:12px;border:none;border-radius:8px;background:#ffd9a8;color:var(--navy);font-weight:700;font-size:14px;cursor:pointer">⬇ Export dosage summary (no calculation detail)</button>
+        <div class="explain" style="margin-top:6px">Just the quantities to dose — turbidity, flow, chemical, kg/day. No formulas or working.</div>
+        <pre id="dosageExport" style="display:none;white-space:pre-wrap;background:rgba(0,0,0,.25);color:#eaf1fb;padding:12px;border-radius:8px;font-size:12.5px;margin-top:8px"></pre>
+        <a id="dosageDl" download="aquatreat_dosage.txt" style="display:none;margin-top:8px;color:#cfe0f2;font-weight:700;text-decoration:none">↓ Download as .txt</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH REPORT -->
+  <div class="card" style="margin-top:18px">
+    <h2>Generate a dosing report across all dates</h2>
+    <p style="font-size:13px;color:var(--grey);margin:0 0 12px">
+      Upload a folder (zipped) or the lab sheets — AquaTreat reads the turbidity per sample per date and
+      computes the coagulant dose for every reading, then gives you a by-date report. Works with the same
+      Spectro-style sheets used in the water-quality analysis.
+    </p>
+    <div class="row" style="align-items:flex-end;flex-wrap:wrap">
+      <div style="min-width:200px">
+        <label>Lab sheets (.zip of a folder, or .xlsx files)</label>
+        <input id="batchFiles" type="file" multiple accept=".zip,.xlsx,.xls">
+      </div>
+      <div style="max-width:180px">
+        <label>Plant flow (optional)</label>
+        <input id="batchFlow" type="number" placeholder="e.g. 5" step="any" min="0">
+      </div>
+      <div style="max-width:150px">
+        <label>Unit</label>
+        <select id="batchUnit">
+          <option value="UK_MGD">UK MGD</option><option value="MLD">MLD</option><option value="US_MGD">US MGD</option>
+        </select>
+      </div>
+      <div>
+        <button id="genBtn" onclick="generateReport()"
+          style="background:var(--orange);color:#fff;border:0;border-radius:8px;padding:11px 22px;font-size:15px;font-weight:700;cursor:pointer">
+          Generate report
+        </button>
+      </div>
+    </div>
+    <div id="batchStatus" style="font-size:13px;margin-top:12px"></div>
+    <div id="batchResult" style="margin-top:12px"></div>
+  </div>
+
+  <div class="foot">
+    Coagulant dose from raw-water turbidity — field formula, State PH Lab (Palasuni), Kuakhai/Mahanada river data
+    (tabulated 10–550 NTU; valid across natural raw water 0–1500+ NTU).<br>
+    Alum Gr.IV = 11.51·NTU<sup>0.552</sup> · PAC = 9.474·NTU<sup>0.536</sup> · Alum Gr.II = 18.86·NTU<sup>0.537</sup> (kg per <b>MG = million gallons</b>, not milligram).
+    kg/day = dose(mg/L) × flow(MLD). Disinfection: bleaching powder assumed 33% available Cl. 1 UK gallon = 4.54609 L.
+  </div>
+</div>
+</div><!-- /panel-dose -->
+
+<!-- ============ PANEL 2 : CHLORINE FIELD TEST ============ -->
+<div class="panel" id="panel-field">
+<div class="wrap">
+  <div class="grid">
+    <!-- LEFT: SOP + capture -->
+    <div class="card">
+      <h2>1 · Test the sample</h2>
+      <div class="stepchip">
+        <span class="on">1 · Fill 10 mL</span><span>2 · Add DPD</span><span>3 · Photograph</span><span>4 · Result</span>
+      </div>
+      <div class="sop">
+        <b>Standard procedure</b> <span class="ml">मानक विधि · ମାନକ ପଦ୍ଧତି</span>
+        <ol>
+          <li>Collect exactly <b>10 mL</b> water in a clean clear vial. <span class="ml">10 mL पानी लें</span></li>
+          <li>Add the <b>DPD</b> reagent; cap and invert gently until an even <b>pink</b> develops. <span class="ml">DPD डालें, मिलाएँ</span></li>
+          <li>Hold the vial against a <b>pure white</b> card/paper. <span class="ml">सफ़ेद पृष्ठभूमि</span></li>
+          <li>Fill the outline with the vial and tap the shutter. <span class="ml">फ़ोटो लें</span></li>
+        </ol>
+      </div>
+      <label for="wtpLoc" style="margin-top:4px">WTP / location <span style="font-weight:400;color:var(--grey)">— name of the plant or sampling point</span> <span class="ml">संयंत्र / स्थान · ପ୍ଲାଣ୍ଟ / ସ୍ଥାନ</span></label>
+      <input id="wtpLoc" type="text" placeholder="e.g. Palasuni WTP — outlet" autocomplete="off">
+      <div class="cam-wrap" id="camWrap" style="margin-top:12px">
+        <video id="cam" playsinline autoplay muted></video>
+        <div class="roi" id="roi"></div>
+        <div class="roi-label" id="roiLabel">Align the vial · white background</div>
+      </div>
+      <button class="shutter" id="shutter" onclick="captureTest()" disabled title="Capture"></button>
+      <div class="hint" id="camHint" style="text-align:center">Starting camera…</div>
+      <div style="margin-top:12px">
+        <button onclick="startCam()" style="width:48%;padding:11px;border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:600;cursor:pointer">↻ Restart camera</button>
+        <label style="display:inline-block;width:48%;text-align:center;padding:11px;border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:600;cursor:pointer;margin:0">
+          📁 Photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event)"></label>
+      </div>
+      <div class="sop" style="margin-top:14px">
+        <b>No camera?</b> Read the colour off the comparator card and enter it:
+        <div class="row" style="margin-top:8px">
+          <div><label style="margin-top:0">Card reading (mg/L)</label><input id="manualCl" type="number" step="0.01" min="0" placeholder="e.g. 0.50"></div>
+          <div style="display:flex;align-items:flex-end"><button onclick="manualResult()" style="width:100%;padding:9px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer">Use reading</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: result + record -->
+    <div class="out card">
+      <h2>Free residual chlorine</h2>
+      <div class="result-block">
+        <div class="bigresult" id="clResult">— <small style="font-size:16px;font-weight:400">mg/L</small></div>
+        <div style="text-align:center"><span class="band" id="clBand" style="display:none"></span></div>
+        <ol class="steps" id="clSteps" style="margin-top:12px"></ol>
+        <div class="note" id="clNote">Capture a test to see the result.</div>
+      </div>
+      <div class="result-block" id="recordBlock" style="display:none">
+        <h3>Tamper-evident record</h3>
+        <div class="explain">The photo below is stamped at the moment of capture. Timestamp is always embedded (works offline); coordinates are embedded when location permission is granted (otherwise marked "location unavailable"); address &amp; map thumbnail load when online.</div>
+        <canvas id="stampCanvas" class="stamped"></canvas>
+        <a id="dlStamp" download="chlorine-test.png" style="display:inline-block;margin-top:10px;color:#cfe0f2;font-weight:700;text-decoration:none">↓ Save stamped image</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    DPD green-channel colorimetry, calibrated from the field comparator card (Chlor-Test 0.1–1.0 mg/L):
+    chlorine (mg/L) = 3.778 × log₁₀(G<sub>white</sub>/G<sub>sample</sub>), R²=0.995. Linear to ~2 mg/L.
+    A screening aid — confirm critical readings against the comparator card. BIS IS 10500:2012 residual band 0.2–1.0 mg/L.
+  </div>
+</div>
+</div><!-- /panel-field -->
+
+<div class="panel" id="panel-ionic">
+  <div class="grid">
+    <div>
+      <h2 style="margin-top:0">Ionic balance — data validation</h2>
+      <p style="font-size:13px;color:var(--grey);margin:4px 0 12px">
+        Checks a water analysis for internal consistency: total cations should balance total anions.
+        Ion Balance Error (IBE) = (ΣCations − ΣAnions) ÷ (ΣCations + ΣAnions) × 100%.
+        <b>0–5% excellent · 5–10% acceptable · &gt;10% re-analyse.</b>
+      </p>
+
+      <div class="stepchip" style="justify-content:flex-start">
+        <span class="on" id="modeSingleChip" onclick="ionMode('single')">Single sample</span>
+        <span id="modeReportChip" onclick="ionMode('report')">Upload report(s)</span>
+      </div>
+
+      <!-- SINGLE SAMPLE -->
+      <div id="ionSingle">
+        <h3 style="font-size:14px;margin:8px 0">Sample details</h3>
+        <div class="row3">
+          <div><label>Source name</label><input id="ibName" placeholder="e.g. Tubewell-12"></div>
+          <div><label>Source type</label>
+            <select id="ibType"><option value="">—</option><option>TW/HP (ground)</option><option>PW (production well)</option><option>SS (surface/raw)</option><option>DS (distribution)</option><option>Sump/OGR/UGR/MBR (treated storage)</option></select></div>
+          <div><label>Date</label><input id="ibDate" type="date"></div>
+        </div>
+        <div class="row2">
+          <div><label>Location</label><input id="ibLoc" placeholder="e.g. Ward 5, Cuttack"></div>
+          <div><label>Lab / sample ID</label><input id="ibId" placeholder="e.g. CTK-06632"></div>
+        </div>
+
+        <h3 style="font-size:14px;margin:14px 0 4px">Cations (mg/L)</h3>
+        <div class="row2">
+          <div><label>Calcium (as Ca)</label><input id="ibCa" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Magnesium (as Mg)</label><input id="ibMg" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Sodium (as Na)</label><input id="ibNa" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Potassium (as K)</label><input id="ibK" type="number" step="any" min="0" oninput="ionCalc()"></div>
+        </div>
+        <h3 style="font-size:14px;margin:14px 0 4px">Anions (mg/L)</h3>
+        <div class="row2">
+          <div><label>Bicarbonate (HCO₃) <span style="font-weight:400;color:var(--grey)">or alkalinity as CaCO₃*</span></label><input id="ibHCO3" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Carbonate (CO₃)</label><input id="ibCO3" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Chloride (Cl)</label><input id="ibCl" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Sulphate (SO₄)</label><input id="ibSO4" type="number" step="any" min="0" oninput="ionCalc()"></div>
+          <div><label>Nitrate (as NO₃)</label><input id="ibNO3" type="number" step="any" min="0" oninput="ionCalc()"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:400">
+          <input type="checkbox" id="ibAlkMode" style="width:auto;min-height:0" onchange="ionCalc()">
+          The value above is <b>total alkalinity as CaCO₃</b> (converted to HCO₃ equivalents)
+        </label>
+      </div>
+
+      <!-- REPORT UPLOAD -->
+      <div id="ionReport" style="display:none">
+        <p style="font-size:13px;color:var(--grey)">Upload one Spectro lab sheet for a single-source report, or several/all for a batch validation. The server parses each sheet, computes IBE per sample, and grades it.</p>
+        <label>Lab sheet(s) — .xlsx</label>
+        <input type="file" id="ibFiles" accept=".xlsx" multiple>
+        <button onclick="ionUpload()" style="margin-top:12px;background:var(--blue);color:#fff;border:none;padding:12px;border-radius:9px;font-weight:700;width:100%;min-height:46px">Validate report(s)</button>
+        <div id="ibUpStatus" style="font-size:13px;margin-top:10px;color:var(--grey)"></div>
+        <p style="font-size:12px;color:var(--grey);margin-top:8px">Requires the app running via <code>python app.py</code> (desktop). On the phone, use single-sample entry.</p>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="out card">
+      <h2 style="margin-top:0">Result</h2>
+      <div class="result-block" id="ionResultBlock">
+        <div class="big" id="ibResult">—</div>
+        <div class="sub" id="ibGrade"></div>
+        <div class="gauge" style="background:linear-gradient(90deg,#2ecc71 0%,#2ecc71 33%,#e6842e 33%,#e6842e 66%,#e74c3c 66%,#e74c3c 100%)"><div class="pin" id="ibPin" style="left:0;display:none"></div></div>
+        <div class="gauge-lbl"><span>0%</span><span>excellent ≤5</span><span>accept ≤10</span><span>&gt;10</span></div>
+        <ol class="steps" id="ibSteps"></ol>
+        <div class="note" id="ibNote">Enter the major ions to compute the balance.</div>
+      </div>
+    </div>
+  </div>
+  <div id="ibReportOut" style="margin-top:16px"></div>
+</div><!-- /panel-ionic -->
+
+<!-- CRITICAL 0.0 ALERT -->
+<div class="critical" id="critical">
+  <div class="warnicon">⚠️</div>
+  <h2>ZERO CHLORINE — WATER UNSAFE</h2>
+  <div style="font-size:16px">शून्य क्लोरीन — पानी असुरक्षित<br>ଶୂନ୍ୟ କ୍ଲୋରିନ୍ — ଅସୁରକ୍ଷିତ</div>
+  <div class="adv" id="criticalAdv"></div>
+  <button onclick="ackCritical()">✓ I acknowledge — मैंने देखा</button>
+</div>
+
+<script>
+// ---- engine (mirrors aquatreat_engine.py exactly) ----
+var L_UK=4.54609, L_US=3.78541, BLEACH=0.33, PAC_DENS=1.18, FIELD_MAX=550;
+var COAG_FORMULA={"Alum Gr.IV":[11.51,0.552],"PAC":[9.474,0.536],"Alum Gr.II":[18.86,0.537]};
+function flowToMld(v,u){return v*(u==="MLD"?1:(u==="UK_MGD"?L_UK:L_US));}
+function fmt(x,d){if(!isFinite(x)||x===null)return "—";return x.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+function doseKgPerMG(ntu,chem){var c=COAG_FORMULA[chem];return ntu>0?c[0]*Math.pow(ntu,c[1]):0;}   // kg per million UK gallons
+function doseMgL(ntu,chem){return doseKgPerMG(ntu,chem)/L_UK;}                                       // mg/L
+
+function calc(){
+  var ntu=parseFloat(document.getElementById('ntu').value)||0;
+  var flow=parseFloat(document.getElementById('flow').value)||0;
+  var unit=document.getElementById('flowUnit').value;
+  var mld=flowToMld(flow,unit);
+  var coag=document.getElementById('coag').value;
+  var isLiquid=(coag==="PAC_LIQUID");
+  var chem=isLiquid?"PAC":coag;                  // formula key
+  var f=COAG_FORMULA[chem];                       // [coefficient, exponent] — needed by the step list below
+  var dose_mgL=doseMgL(ntu,chem);
+  var dose_kgmg=doseKgPerMG(ntu,chem);
+  var kg=dose_mgL*mld;
+
+  // turbidity hint / range flag
+  var beyond=ntu>FIELD_MAX;
+  document.getElementById('ntuHint').innerHTML=(ntu<=0)?"Enter turbidity > 0":
+    ("Dose looked up from this turbidity."+(beyond?
+      ' <span class="flag warn">'+ntu+' NTU is beyond the tabulated field data (10–550 NTU) — formula extrapolation</span>':
+      ' <span class="flag ok">within tabulated 10–550 NTU</span>'));
+  document.getElementById('flowHint').textContent=(unit==="UK_MGD")?"1 UK gallon = 4.54609 L  ·  "+fmt(mld,3)+" MLD":
+    (unit==="US_MGD")?"1 US gallon = 3.78541 L  ·  "+fmt(mld,3)+" MLD":fmt(mld,3)+" MLD = "+fmt(mld*1000,0)+" m³/day";
+
+  // coagulant output
+  document.getElementById('sgWrap').style.display = isLiquid ? "block" : "none";
+  var sg = parseFloat(document.getElementById('sg').value) || 1.18;
+  var label=isLiquid?"PAC (liquid)":coag;
+  document.getElementById('coagTitle').textContent="Coagulant to add — "+label;
+  var fMG = mld / L_UK;   // flow in million UK gallons/day
+  if(ntu>0 && mld>0){
+    document.getElementById('coagKg').innerHTML=fmt(kg,1)+' <small>kg/day</small>';
+    document.getElementById('coagVol').innerHTML = isLiquid ?
+      ('<b>= '+fmt(kg/sg,1)+' L/day</b>  (kg/day ÷ specific gravity '+fmt(sg,3)+')') : "";
+    // transparent numbered calculation
+    var st=[];
+    st.push('<b>Look up the dose</b> from turbidity (field formula):<br><span class="u">'+
+            f[0]+' × '+fmt(ntu,1)+'^'+f[1]+' = <b>'+fmt(dose_kgmg,1)+' kg per million UK gallons</b></span>');
+    st.push('<b>Convert the water quantity</b> to million UK gallons:<br><span class="u">'+
+            fmt(mld,3)+' MLD ÷ 4.54609 (1 UK gal = 4.54609 L) = <b>'+fmt(fMG,4)+' million UK gal/day</b></span>');
+    st.push('<b>Multiply</b> dose × water quantity:<br><span class="u">'+
+            fmt(dose_kgmg,1)+' kg/Mgal × '+fmt(fMG,4)+' Mgal/day = <b>'+fmt(kg,1)+' kg/day</b></span>');
+    if(isLiquid) st.push('<b>Liquid volume</b> = kg/day ÷ specific gravity:<br><span class="u">'+
+            fmt(kg,1)+' ÷ '+fmt(sg,3)+' = <b>'+fmt(kg/sg,1)+' L/day</b></span>');
+    document.getElementById('coagSteps').innerHTML=st.map(function(x){return '<li>'+x+'</li>';}).join('');
+    document.getElementById('coagNote').innerHTML="Suggestive dose — verify against jar test / settled-water turbidity.";
+  } else {
+    document.getElementById('coagKg').textContent="—";
+    document.getElementById('coagVol').textContent="";
+    document.getElementById('coagSteps').innerHTML="";
+    var need=[];
+    if(ntu<=0) need.push("raw-water turbidity (NTU)");
+    if(mld<=0) need.push("plant flow");
+    document.getElementById('coagNote').innerHTML='<span class="flag warn">waiting for input</span> Enter '+
+      need.join(" and ")+" above — the dose is calculated only once both are provided.";
+  }
+
+  // dose basis (only when there is a real dose to describe)
+  if(ntu>0){
+    document.getElementById('doseBasis').innerHTML="Dose = "+fmt(dose_kgmg,1)+" kg per million <b>UK</b> gallons  =  <b>"+fmt(dose_mgL,1)+" mg/L</b>  (from "+f[0]+"·NTU<sup>"+f[1]+"</sup>)";
+  } else { document.getElementById('doseBasis').textContent=""; }
+  if(ntu>0 && mld>0){
+    if(unit==="MLD"){
+      var fMG=mld/L_UK;
+      document.getElementById('flowBasis').innerHTML="Flow = "+fmt(mld,3)+" MLD ÷ 4.54609 = "+fmt(fMG,4)+" million UK gal/day  →  kg/day = "+fmt(dose_kgmg,1)+" × "+fmt(fMG,4);
+    } else {
+      document.getElementById('flowBasis').textContent="Flow = "+fmt(flow,3)+" "+(unit==="UK_MGD"?"million UK gal/day":"million US gal/day")+"  →  kg/day = dose × flow";
+    }
+    // alternative coagulant comparison
+    var others=[];
+    for(var k in COAG_FORMULA){ if(k!==chem){ others.push(k+": "+fmt(doseMgL(ntu,k)*mld,0)+" kg/day"); } }
+    document.getElementById('altCoag').innerHTML="For comparison — "+others.join(" · ");
+  } else {
+    document.getElementById('flowBasis').textContent="";
+    document.getElementById('altCoag').textContent="";
+  }
+
+  // disinfection (optional)
+  var dis=document.getElementById('dis').value;
+  document.getElementById('clPctWrap').style.display=(dis==="custom")?"block":"none";
+  var disBox=document.getElementById('disOut');
+  if(dis==="none"){ disBox.style.display="none"; }
+  else{
+    disBox.style.display="block";
+    var cld=parseFloat(document.getElementById('clDose').value)||0;
+    var frac=(dis==="chlorine_gas")?1.0:(dis==="custom")?((parseFloat(document.getElementById('clPct').value)||33)/100):BLEACH;
+    var agentName=(dis==="chlorine_gas")?"Chlorine gas":(dis==="custom")?"Hypochlorite":"Bleaching powder";
+    var clKg=mld*cld, prodKg=clKg/frac;
+    document.getElementById('disTitle').textContent="Disinfectant — "+agentName+" ("+fmt(frac*100,0)+"% avail. Cl)";
+    if(cld>0 && mld>0){
+      document.getElementById('disKg').innerHTML=fmt(prodKg,1)+' <small>kg/day</small>';
+      var ds=[];
+      ds.push('<b>Chlorine demand</b> = dose × flow:<br><span class="u">'+
+              fmt(cld,2)+' mg/L × '+fmt(mld,3)+' MLD = <b>'+fmt(clKg,1)+' kg/day of chlorine</b></span>');
+      ds.push('<b>Product needed</b> = chlorine ÷ available-chlorine strength:<br><span class="u">'+
+              fmt(clKg,1)+' ÷ '+fmt(frac*100,0)+'% = <b>'+fmt(prodKg,1)+' kg/day of '+agentName.toLowerCase()+'</b></span>');
+      document.getElementById('disSteps').innerHTML=ds.map(function(x){return '<li>'+x+'</li>';}).join('');
+      document.getElementById('disNote').innerHTML=agentName+" is only "+fmt(frac*100,0)+"% chlorine, so you need more product than pure chlorine. Keep 0.2–1.0 mg/L residual at consumer end (IS 10500:2012).";
+    } else { document.getElementById('disKg').textContent="—";document.getElementById('disSteps').innerHTML="";
+             document.getElementById('disNote').innerHTML=(mld<=0)?
+               '<span class="flag warn">waiting for input</span> Enter the plant flow above.':
+               '<span class="flag warn">waiting for input</span> Enter the target chlorine dose (mg/L) above.'; }
+  }
+
+  // formula trace — shown in the field table's native units (MG = million gallons)
+  var lines;
+  if(unit==="UK_MGD"){
+    // direct field-table path: kg/day = dose(kg per MG) x flow(MG per day)
+    lines=["Field-table basis  (MG = million gallons):",
+           "  dose  = "+f[0]+" × NTU^"+f[1]+" = "+fmt(dose_kgmg,1)+" kg per million gallons",
+           "  flow  = "+fmt(flow,3)+" million gallons/day",
+           "  add   = "+fmt(dose_kgmg,1)+" kg/million-gal × "+fmt(flow,3)+" million gal/day = "+fmt(kg,1)+" kg/day"];
+  } else {
+    // flow in million LITRES: keep dose in the table's native kg/million-gallon,
+    // convert the WATER quantity to million UK gallons, then multiply.
+    var flowMG = mld / L_UK;   // million litres/day -> million UK gallons/day
+    lines=["Dose stays in field-table units; convert the water to million gallons:",
+           "  dose  = "+f[0]+" × NTU^"+f[1]+" = "+fmt(dose_kgmg,1)+" kg per million UK gallon",
+           "  flow  = "+fmt(mld,3)+" million litres/day ÷ 4.54609 = "+fmt(flowMG,4)+" million UK gallons/day",
+           "  add   = "+fmt(dose_kgmg,1)+" kg/million-gal × "+fmt(flowMG,4)+" = "+fmt(kg,1)+" kg/day"];
+  }
+  document.getElementById('formulaBox').textContent=lines.join("\n");
+}
+
+// ---- dosage-only export (no calculation detail) ----
+function exportDosage(){
+  var ntu=parseFloat(document.getElementById('ntu').value)||0;
+  var flow=parseFloat(document.getElementById('flow').value)||0;
+  var unit=document.getElementById('flowUnit').value;
+  var mld=flowToMld(flow,unit);
+  var coag=document.getElementById('coag').value, isLiquid=(coag==="PAC_LIQUID");
+  var chem=isLiquid?"PAC":coag, label=isLiquid?"PAC (liquid)":coag;
+  var pre=document.getElementById('dosageExport'), dl=document.getElementById('dosageDl');
+  if(!(ntu>0&&mld>0)){ pre.style.display='block'; pre.textContent='Enter turbidity and flow first.'; dl.style.display='none'; return; }
+  var kg=doseMgL(ntu,chem)*mld;
+  var unitTxt={MLD:"MLD",UK_MGD:"million UK gal/day",US_MGD:"million US gal/day"}[unit];
+  var wtp=(document.getElementById('wtpLoc')?document.getElementById('wtpLoc').value:'').trim();
+  var L=['AQUATREAT — DOSAGE SUMMARY',
+    new Date().toLocaleString(),
+    '--------------------------------'];
+  if(wtp) L.push('WTP / location      : '+wtp);
+  L=L.concat([
+    'Raw-water turbidity : '+fmt(ntu,1)+' NTU',
+    'Plant flow          : '+fmt(flow,3)+' '+unitTxt+'  ('+fmt(mld,3)+' MLD)',
+    'Coagulant           : '+label,
+    'DOSE TO ADD         : '+fmt(kg,1)+' kg/day']);
+  if(isLiquid){ var sg=parseFloat(document.getElementById('sg').value)||1.18; L.push('  (liquid volume    : '+fmt(kg/sg,1)+' L/day at SG '+fmt(sg,3)+')'); }
+  // disinfection if set
+  var cld=parseFloat(document.getElementById('clDose').value)||0;
+  if(cld>0){ var frac=(parseFloat(document.getElementById('clPct').value)||33)/100;
+    var agent=document.getElementById('dis').options[document.getElementById('dis').selectedIndex].text;
+    var clKg=cld*mld, prodKg=clKg/frac;
+    L.push('--------------------------------','Disinfectant        : '+agent,
+      'Chlorine dose       : '+fmt(cld,2)+' mg/L',
+      'PRODUCT TO ADD      : '+fmt(prodKg,1)+' kg/day'); }
+  var txt=L.join('\n');
+  pre.style.display='block'; pre.textContent=txt;
+  dl.style.display='inline-block'; dl.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+}
+
+// ================= CHLORINE FIELD TEST =================
+var DPD_K=3.778, BIS_MIN=0.2, BIS_MAX=1.0, DPD_VALID_MAX=2.0;   // mirrors aquatreat_engine.py
+var camStream=null, roiCheckTimer=null, lastGeo=null;
+
+function showTab(which){
+  document.getElementById('panel-dose').classList.toggle('active',which==='dose');
+  document.getElementById('panel-field').classList.toggle('active',which==='field');
+  document.getElementById('panel-ionic').classList.toggle('active',which==='ionic');
+  document.getElementById('tabDose').classList.toggle('active',which==='dose');
+  document.getElementById('tabField').classList.toggle('active',which==='field');
+  document.getElementById('tabIonic').classList.toggle('active',which==='ionic');
+  if(which==='field'){ startCam(); requestGeo(); } else { stopCam(); }
+}
+
+// ===== Ionic balance (data validation) =====
+// Equivalent weights (mg per meq) — from the Technical Note on Ionic Balance.
+var EQW={Ca:20.04,Mg:12.15,Na:22.99,K:39.10,HCO3:61.02,CO3:30.00,SO4:48.03,Cl:35.45,NO3:62.00,CaCO3:50.04};
+function ionMode(m){
+  var single=(m==='single');
+  document.getElementById('ionSingle').style.display=single?'block':'none';
+  document.getElementById('ionReport').style.display=single?'none':'block';
+  document.getElementById('modeSingleChip').className=single?'on':'';
+  document.getElementById('modeReportChip').className=single?'':'on';
+}
+function _num(id){ var v=parseFloat(document.getElementById(id).value); return isFinite(v)&&v>=0?v:0; }
+function ibGrade(a){ if(a<=5) return {k:'exc',t:'Excellent (≤5%)'}; if(a<=10) return {k:'acc',t:'Acceptable (5–10%)'}; return {k:'bad',t:'Re-analyse (>10%)'}; }
+function ionCalc(){
+  var Ca=_num('ibCa'),Mg=_num('ibMg'),Na=_num('ibNa'),K=_num('ibK');
+  var CO3=_num('ibCO3'),Cl=_num('ibCl'),SO4=_num('ibSO4'),NO3=_num('ibNO3');
+  var hco3in=_num('ibHCO3'), alkMode=document.getElementById('ibAlkMode').checked;
+  // if the field holds total alkalinity as CaCO3, convert meq via CaCO3 eq wt; else treat as HCO3 mg/L
+  var cat={Ca:Ca/EQW.Ca,Mg:Mg/EQW.Mg,Na:Na/EQW.Na,K:K/EQW.K};
+  var an={HCO3:(alkMode? hco3in/EQW.CaCO3 : hco3in/EQW.HCO3),CO3:CO3/EQW.CO3,SO4:SO4/EQW.SO4,Cl:Cl/EQW.Cl,NO3:NO3/EQW.NO3};
+  var sc=cat.Ca+cat.Mg+cat.Na+cat.K, sa=an.HCO3+an.CO3+an.SO4+an.Cl+an.NO3;
+  var anyIn=(Ca||Mg||Na||K||hco3in||CO3||Cl||SO4||NO3);
+  if(!anyIn||(sc+sa)===0){
+    document.getElementById('ibResult').textContent='—';
+    document.getElementById('ibGrade').textContent='';
+    document.getElementById('ibPin').style.display='none';
+    document.getElementById('ibSteps').innerHTML='';
+    document.getElementById('ibNote').textContent='Enter the major ions to compute the balance.';
+    return;
+  }
+  var ibe=100*(sc-sa)/(sc+sa), g=ibGrade(Math.abs(ibe));
+  document.getElementById('ibResult').innerHTML='IBE = '+ibe.toFixed(1)+'%';
+  document.getElementById('ibGrade').innerHTML='<span class="badge '+g.k+'">'+g.t+'</span>';
+  var pin=document.getElementById('ibPin'); pin.style.display='block';
+  pin.style.left=Math.max(0,Math.min(100,(Math.abs(ibe)/15)*100))+'%';
+  var f=function(x){return x.toFixed(3);};
+  document.getElementById('ibSteps').innerHTML=[
+    'ΣCations = Ca/20.04 + Mg/12.15 + Na/22.99 + K/39.10 = <span class="u"><b>'+f(sc)+' meq/L</b></span>',
+    'ΣAnions = HCO₃'+(alkMode?'(as CaCO₃)':'')+' + CO₃ + SO₄ + Cl + NO₃ = <span class="u"><b>'+f(sa)+' meq/L</b></span>',
+    'IBE = (ΣCat − ΣAn)/(ΣCat + ΣAn) × 100 = <span class="u"><b>'+ibe.toFixed(1)+'%</b></span>'
+  ].map(function(x){return '<li>'+x+'</li>';}).join('');
+  var sign=ibe>0?'cation excess (anions likely under-reported — check alkalinity)':(ibe<0?'anion excess (cations likely under-reported)':'balanced');
+  document.getElementById('ibNote').textContent=(Math.abs(ibe)<=5?'Internally consistent — ':(Math.abs(ibe)<=10?'Marginally consistent — ':'Fails the balance check — '))+sign+'.';
+}
+function ionUpload(){
+  var fs=document.getElementById('ibFiles').files;
+  var st=document.getElementById('ibUpStatus'), out=document.getElementById('ibReportOut');
+  if(!fs.length){ st.textContent='Choose one or more .xlsx lab sheets first.'; return; }
+  st.textContent='Uploading & validating '+fs.length+' file(s)…'; out.innerHTML='';
+  var fd=new FormData(); for(var i=0;i<fs.length;i++) fd.append('files',fs[i]);
+  fetch('/api/ionic',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){
+    if(j.error){ st.innerHTML='<span style="color:var(--red)">'+j.error+'</span>'; return; }
+    st.textContent=j.n_samples+' sample(s) from '+j.n_files+' file(s) validated.';
+    out.innerHTML=renderIonReport(j);
+  }).catch(function(){ st.innerHTML='<span style="color:var(--red)">Server not reachable — run <code>python app.py</code> on a computer for report upload.</span>'; });
+}
+function renderIonReport(j){
+  var h='<div class="card"><h2>Ionic-balance validation report</h2>';
+  h+='<div style="font-size:12.5px;color:var(--grey);margin-bottom:8px">Grade: '+j.summary.excellent+' excellent · '+j.summary.acceptable+' acceptable · '+j.summary.reanalyse+' re-analyse (of '+j.n_samples+').</div>';
+  h+='<div style="overflow-x:auto"><table class="ibtable"><tr><th>Sample ID</th><th>Source</th><th>Type</th><th>Date</th><th>Location</th><th>ΣCat</th><th>ΣAn</th><th>IBE %</th><th>Grade</th></tr>';
+  j.rows.forEach(function(r){
+    var g=(Math.abs(r.ibe)<=5?'exc':(Math.abs(r.ibe)<=10?'acc':'bad'));
+    h+='<tr><td class="l">'+(r.id||'—')+'</td><td class="l">'+(r.name||'—')+'</td><td>'+(r.type||'—')+'</td><td>'+(r.date||'—')+'</td><td class="l">'+(r.loc||'—')+'</td><td>'+r.sc.toFixed(2)+'</td><td>'+r.sa.toFixed(2)+'</td><td>'+r.ibe.toFixed(1)+'</td><td><span class="badge '+g+'">'+(g==='exc'?'Excellent':(g==='acc'?'Acceptable':'Re-analyse'))+'</span></td></tr>';
+  });
+  h+='</table></div>';
+  if(j.download) h+='<a class="dl" href="'+j.download+'" style="display:inline-block;margin-top:10px;color:var(--blue);font-weight:700;text-decoration:none">↓ Download validation CSV</a>';
+  h+='</div>'; return h;
+}
+
+function requestGeo(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(function(p){
+    lastGeo={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
+  }, function(){ lastGeo=null; }, {enableHighAccuracy:true,timeout:8000,maximumAge:60000});
+}
+
+function startCam(){
+  stopCam();
+  var v=document.getElementById('cam'), hint=document.getElementById('camHint');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    hint.innerHTML='<span style="color:var(--red)">Camera not available in this browser — use 📁 Photo or the manual card reading below.</span>'; return; }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(function(s){ camStream=s; v.srcObject=s; hint.textContent='Fill the outline with the vial against a white background, then tap the shutter.';
+      if(roiCheckTimer) clearInterval(roiCheckTimer); roiCheckTimer=setInterval(checkROI,400); })
+    .catch(function(){ hint.innerHTML='<span style="color:var(--red)">Camera blocked — allow camera, or use 📁 Photo / manual reading.</span>'; });
+}
+function stopCam(){ if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;} if(roiCheckTimer){clearInterval(roiCheckTimer);roiCheckTimer=null;} }
+
+// median helper
+function _median(arr){ if(!arr.length) return 0; arr.sort(function(a,b){return a-b;}); return arr[arr.length>>1]; }
+
+// Locate the pink DPD liquid in the central band and measure its green channel.
+// Returns {detected, gPink, gWhite, pinkFrac, overFrac}. NEVER assumes a rectangle
+// holds liquid — if too little pink is found, detected=false (so a mis-framed or
+// empty frame is not reported as 0.0 mg/L).
+function analyzeFrame(srcEl,w,h){
+  var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  var cx=cv.getContext('2d'); cx.drawImage(srcEl,0,0,w,h);
+  var x0=Math.round(w*0.30), bw=Math.round(w*0.40);   // central band = guided outline
+  var d=cx.getImageData(x0,0,bw,h).data;
+  var gPink=[], gWhite=[], nPink=0, nWhite=0, over=0, n=0;
+  for(var i=0;i<d.length;i+=4){
+    var R=d[i],G=d[i+1],B=d[i+2]; n++;
+    if(R>250&&G>250&&B>250) over++;
+    if(R>G+8 && B>G+2 && (R-G)>10){ gPink.push(G); nPink++; }          // DPD pink: green suppressed
+    else if(Math.min(R,G,B)>170 && (Math.max(R,G,B)-Math.min(R,G,B))<18){ gWhite.push(G); nWhite++; }
+  }
+  var pinkFrac=nPink/n;
+  if(nPink < Math.max(50, 0.02*n))
+    return {detected:false, pinkFrac:pinkFrac, overFrac:over/n, gWhite:_median(gWhite)||0};
+  return {detected:true, gPink:_median(gPink), gWhite:(nWhite>=50?_median(gWhite):255),
+          pinkFrac:pinkFrac, overFrac:over/n};
+}
+
+function checkROI(){
+  var v=document.getElementById('cam'); if(!v.videoWidth) return;
+  var s=analyzeFrame(v,240,320);
+  var roi=document.getElementById('roi'), lab=document.getElementById('roiLabel'), sh=document.getElementById('shutter');
+  var ok=true, msg='Pink liquid detected — tap the shutter';
+  if(s.overFrac>0.15){ ok=false; msg='Too bright / glare — move to shade'; }
+  else if(!s.detected){ ok=false; msg='Align the pink vial inside the outline'; }
+  else if(s.gWhite<150){ ok=false; msg='Use a white background behind the vial'; }
+  roi.className='roi '+(ok?'ok':'bad'); lab.textContent=msg; sh.disabled=!ok;
+}
+
+function captureTest(){
+  var v=document.getElementById('cam');
+  var w=v.videoWidth||960, h=v.videoHeight||1280;
+  finishTest(analyzeFrame(v,w,h),v,w,h);
+}
+function loadPhoto(ev){
+  var f=ev.target.files[0]; if(!f) return;
+  var img=new Image(); img.onload=function(){ finishTest(analyzeFrame(img,img.width,img.height),img,img.width,img.height); };
+  img.src=URL.createObjectURL(f);
+}
+
+// core: green -> mg/L (identical maths to aquatreat_engine.chlorine_from_green)
+function chlorineFromGreen(gS,gW){
+  gS=Math.min(gS,gW);
+  var A=Math.log10(gW/gS);
+  var conc=Math.max(0, DPD_K*A);
+  var band = conc<=0.049 ? 'zero' : conc<BIS_MIN ? 'low' : conc<=BIS_MAX ? 'ok' : 'high';
+  return {A:A, conc:conc, band:band, beyond:conc>DPD_VALID_MAX, gS:gS, gW:gW};
+}
+
+function finishTest(s,srcEl,w,h){
+  // s = analyzeFrame() result. If no pink liquid was located, DO NOT report 0.0
+  // (that would falsely trigger the zero-chlorine alert). Ask for a re-shot instead.
+  if(!s.detected){
+    document.getElementById('clResult').innerHTML='— <small style="font-size:16px;font-weight:400">mg/L</small>';
+    var b=document.getElementById('clBand'); b.style.display='none';
+    document.getElementById('clSteps').innerHTML='';
+    document.getElementById('recordBlock').style.display='none';
+    document.getElementById('clNote').innerHTML='<span class="band low">No vial detected</span><br>'+
+      'No pink liquid was found in the outline. Re-align the DPD vial against a white background and capture again. '+
+      'If the sample truly shows no colour, confirm zero chlorine on the comparator card before acting.';
+    return;
+  }
+  var r=chlorineFromGreen(s.gPink,s.gWhite);
+  renderResult(r, {gS:s.gPink,gW:s.gWhite});
+  stampImage(srcEl,w,h,r);
+}
+function manualResult(){
+  var v=parseFloat(document.getElementById('manualCl').value);
+  if(!(v>=0)){ document.getElementById('clNote').textContent='Enter the card reading in mg/L.'; return; }
+  var band = v<=0.049?'zero':v<BIS_MIN?'low':v<=BIS_MAX?'ok':'high';
+  renderResult({conc:v,band:band,beyond:v>DPD_VALID_MAX,manual:true},null);
+  document.getElementById('recordBlock').style.display='none';
+}
+
+function renderResult(r,px){
+  document.getElementById('clResult').innerHTML=fmt(r.conc,2)+' <small style="font-size:16px;font-weight:400">mg/L</small>';
+  var bandEl=document.getElementById('clBand'); bandEl.style.display='inline-block'; bandEl.className='band '+r.band;
+  bandEl.textContent={zero:'ZERO — unsafe',low:'Below BIS min (0.2)',ok:'Within BIS 0.2–1.0',high:'Above 1.0 mg/L'}[r.band];
+  var st=[];
+  if(!r.manual && px){
+    st.push('<b>Green channel</b> read from photo:<br><span class="u">vial G = '+fmt(px.gS,1)+' · white G = '+fmt(px.gW,1)+'</span>');
+    st.push('<b>Absorbance</b> A = log₁₀(G_white/G_vial):<br><span class="u">log₁₀('+fmt(px.gW,1)+'/'+fmt(px.gS,1)+') = '+fmt(r.A,4)+'</span>');
+    st.push('<b>Chlorine</b> = 3.778 × A:<br><span class="u">3.778 × '+fmt(r.A,4)+' = <b>'+fmt(r.conc,2)+' mg/L</b></span>');
+  } else if(r.manual){
+    st.push('<b>Manual reading</b> from the comparator card: <b>'+fmt(r.conc,2)+' mg/L</b>');
+  }
+  document.getElementById('clSteps').innerHTML=st.map(function(x){return '<li>'+x+'</li>';}).join('');
+  var note = r.band==='zero' ? 'No disinfection detected — see the alert.'
+    : r.band==='low' ? 'Below the BIS minimum residual (0.2 mg/L). Increase chlorination / check booster.'
+    : r.band==='ok' ? 'Within the BIS operating band (0.2–1.0 mg/L).'
+    : 'Above 1.0 mg/L — safe for disinfection but check for over-chlorination / taste.';
+  if(r.beyond) note+=' (Above the calibrated range ~2 mg/L — confirm on the card.)';
+  document.getElementById('clNote').textContent=note;
+  if(r.band==='zero') triggerCritical();
+}
+
+// ---- tamper-evident overlay ----
+function stampImage(srcEl,w,h,r){
+  var maxW=900, sc=Math.min(1,maxW/w); var cw=Math.round(w*sc), ch=Math.round(h*sc);
+  var hasWtp=((document.getElementById('wtpLoc').value||'').trim()!=='');
+  var band=Math.round(cw*(hasWtp?0.48:0.42));
+  var cv=document.getElementById('stampCanvas'); cv.width=cw; cv.height=ch+band;
+  var cx=cv.getContext('2d');
+  cx.drawImage(srcEl,0,0,cw,ch);
+  cx.fillStyle='rgba(15,25,38,.92)'; cx.fillRect(0,ch,cw,band);
+  var now=new Date();
+  var ts=now.toLocaleString('en-GB',{weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  var off=-now.getTimezoneOffset()/60; var tz='GMT'+(off>=0?'+':'')+off;
+  var pad=Math.round(cw*0.03), y=ch+pad*1.4, lh=Math.round(band*0.11);
+  cx.textBaseline='top';
+  cx.fillStyle='#ffd9a8'; cx.font='bold '+Math.round(band*0.14)+'px sans-serif';
+  cx.fillText('Free residual chlorine = '+r.conc.toFixed(2)+' mg/L', pad, y); y+=lh*1.5;
+  cx.fillStyle='#fff'; cx.font=Math.round(band*0.085)+'px sans-serif';
+  var wtp=(document.getElementById('wtpLoc').value||'').trim();
+  if(wtp){ cx.font='bold '+Math.round(band*0.095)+'px sans-serif'; cx.fillText('WTP: '+wtp.substring(0,48), pad, y); y+=lh;
+    cx.font=Math.round(band*0.085)+'px sans-serif'; }
+  var lat=lastGeo?lastGeo.lat.toFixed(5):'—', lon=lastGeo?lastGeo.lon.toFixed(5):'—';
+  cx.fillText('Lat '+lat+'   Long '+lon+(lastGeo?'':'  (location unavailable)'), pad, y); y+=lh;
+  cx.fillText(ts+'  '+tz, pad, y); y+=lh;
+  cx.fillStyle='#9ec3e8';
+  cx.fillText('Address & map: fetching when online…', pad, y);
+  // draw a small map + address if we can reach a tile service (online)
+  drawMapSnippet(cx,cw,ch,band,pad,y,lat,lon);
+  document.getElementById('recordBlock').style.display='block';
+  document.getElementById('dlStamp').href=cv.toDataURL('image/png');
+}
+function drawMapSnippet(cx,cw,ch,band,pad,addrY,lat,lon){
+  if(!lastGeo) return;
+  // reverse geocode (OpenStreetMap Nominatim) — online only, degrades silently
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lastGeo.lat+'&lon='+lastGeo.lon)
+    .then(function(x){return x.json();}).then(function(j){
+      if(j&&j.display_name){ cx.fillStyle='rgba(15,25,38,.92)'; cx.fillRect(pad,addrY,cw-2*pad,band*0.12);
+        cx.fillStyle='#cfe0f2'; cx.font=Math.round(band*0.075)+'px sans-serif';
+        cx.fillText(j.display_name.substring(0,64), pad, addrY);
+        document.getElementById('dlStamp').href=document.getElementById('stampCanvas').toDataURL('image/png'); }
+    }).catch(function(){});
+  var msz=Math.round(band*0.7), mx=cw-msz-pad, my=ch+(band-msz)/2;
+  var img=new Image(); img.crossOrigin='anonymous';
+  img.onload=function(){ cx.drawImage(img,mx,my,msz,msz); cx.strokeStyle='#ffd9a8'; cx.strokeRect(mx,my,msz,msz);
+    document.getElementById('dlStamp').href=document.getElementById('stampCanvas').toDataURL('image/png'); };
+  img.onerror=function(){};
+  var z=16;
+  img.src='https://staticmap.openstreetmap.de/staticmap.php?center='+lat+','+lon+'&zoom='+z+'&size='+msz+'x'+msz+'&markers='+lat+','+lon+',red-pushpin';
+}
+
+// ---- critical 0.0 protocol ----
+function triggerCritical(){
+  document.getElementById('criticalAdv').innerHTML=
+    'CRITICAL ALERT: No free residual chlorine detected. The water supply currently lacks disinfection protection against microbial contamination.<br><br>'+
+    '<b>Immediate action:</b> check chlorination dosing equipment for failure, verify the chlorine demand of the raw water, and initiate corrective dosing to restore a safe residual (≥0.2 mg/L).';
+  document.getElementById('critical').classList.add('show');
+}
+function ackCritical(){
+  document.getElementById('critical').classList.remove('show');
+  document.getElementById('clNote').textContent='ZERO chlorine acknowledged at '+new Date().toLocaleTimeString()+'. Corrective dosing required — re-test after action.';
+}
+
+// ---- batch report (calls the Flask API when served; needs the running app) ----
+function generateReport(){
+  var f=document.getElementById('batchFiles').files;
+  var status=document.getElementById('batchStatus'), out=document.getElementById('batchResult');
+  out.innerHTML="";
+  if(!f || f.length===0){ status.innerHTML='<span style="color:var(--red)">Choose a .zip of the folder, or the .xlsx sheets, first.</span>'; return; }
+  var fd=new FormData();
+  for(var i=0;i<f.length;i++) fd.append('files', f[i]);
+  fd.append('chemical', document.getElementById('coag').value.replace('PAC_LIQUID','PAC'));
+  if(document.getElementById('batchFlow').value) fd.append('flow', document.getElementById('batchFlow').value);
+  fd.append('unit', document.getElementById('batchUnit').value);
+  status.innerHTML='Reading sheets and computing doses…';
+  document.getElementById('genBtn').disabled=true;
+  fetch('/api/batch',{method:'POST',body:fd})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      document.getElementById('genBtn').disabled=false;
+      if(!j.ok){ status.innerHTML='<span style="color:var(--red)">'+(j.error||'Failed')+'</span>'; return; }
+      var s=j.summary;
+      status.innerHTML='<span style="color:var(--green)">Done — '+s.n_readings+' turbidity readings across '+s.n_dates+' dates.</span>';
+      var h='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
+        '<tr style="background:var(--navy);color:#fff"><th style="padding:6px;text-align:left">Date</th><th>n</th>'+
+        '<th>Turbidity mean (NTU)</th><th>min–max</th><th>Mean dose (mg/L)</th></tr>';
+      j.by_date.forEach(function(r,i){ h+='<tr style="background:'+(i%2?'#fff':'var(--lgrey)')+'">'+
+        '<td style="padding:6px">'+r.date+'</td><td style="text-align:center">'+r.n_samples+'</td>'+
+        '<td style="text-align:center">'+r.turbidity_mean+'</td><td style="text-align:center">'+r.turbidity_min+'–'+r.turbidity_max+'</td>'+
+        '<td style="text-align:center">'+r.dose_mgL_mean+'</td></tr>'; });
+      h+='</table></div>';
+      h+='<div style="margin-top:10px"><a href="/api/batch/download/samples" style="color:var(--blue);font-weight:600">↓ per-sample CSV</a>  ·  '+
+         '<a href="/api/batch/download/dates" style="color:var(--blue);font-weight:600">↓ by-date CSV</a></div>';
+      out.innerHTML=h;
+    })
+    .catch(function(e){ document.getElementById('genBtn').disabled=false;
+      status.innerHTML='<span style="color:var(--red)">This needs the running Python app (python app.py). Error: '+e+'</span>'; });
+}
+calc();
+</script>
+</body>
+</html>
