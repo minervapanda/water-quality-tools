@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Water Quality Field Tools</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:#eef2f7;color:#1c2733;line-height:1.5}
+  header{background:linear-gradient(135deg,#0b335e,#08519c);color:#fff;padding:28px 20px;
+         padding-top:calc(28px + env(safe-area-inset-top))}
+  header h1{margin:0;font-size:22px}
+  header p{margin:6px 0 0;font-size:14px;opacity:.9}
+  .wrap{max-width:560px;margin:0 auto;padding:18px}
+  a.app{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #d6deea;
+        border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(11,51,94,.08)}
+  a.app:active{transform:scale(.99)}
+  .app h2{margin:0 0 4px;font-size:18px}
+  .app .ic{font-size:22px;margin-right:8px}
+  .app p{margin:6px 0 0;font-size:13.5px;color:#557}
+  .app .go{display:inline-block;margin-top:12px;font-weight:700;color:#08519c;font-size:14px}
+  .pool h2{color:#025e73}.pool .go{color:#0288a7}
+  .note{font-size:12.5px;color:#557;background:#fff;border:1px solid #d6deea;border-radius:12px;padding:14px 16px}
+  .note b{color:#1c2733}
+  footer{font-size:11px;color:#889;text-align:center;margin:18px 0;padding-bottom:env(safe-area-inset-bottom)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Water Quality Field Tools</h1>
+  <p>Smartphone tools for drinking-water and swimming-pool testing</p>
+</header>
+<div class="wrap">
+
+  <a class="app" href="aquatreat/index.html">
+    <h2><span class="ic">⚗️</span>AquaTreat — WTP Operator Toolkit</h2>
+    <p>Coagulant dosing from raw-water turbidity, a DPD chlorine field test, and an ionic-balance data-validation calculator — three tools in one.</p>
+    <span class="go">Open AquaTreat →</span>
+  </a>
+
+  <a class="app pool" href="poolcheck/index.html">
+    <h2><span class="ic">🏊</span>PoolCheck — Swimming Pool Chlorine Test</h2>
+    <p>DPD colorimetry for pool free chlorine (WHO 1–3 mg/L), with temperature/pH entry and a day-wise test log. Installable on Android &amp; iOS.</p>
+    <span class="go">Open PoolCheck →</span>
+  </a>
+
+  <div class="note">
+    <b>Camera tip.</b> Both apps use the phone camera for the DPD test — this needs a secure
+    (<b>https</b>) address, which this GitHub Pages link provides. Allow camera access when prompted.
+    Photograph the pink DPD vial against white paper.<br><br>
+    <b>Install PoolCheck</b> to the home screen: Android/Chrome → menu ⋮ → <b>Install app</b>;
+    iOS/Safari → Share → <b>Add to Home Screen</b>.<br><br>
+    <b>Note:</b> AquaTreat's <i>batch report upload</i> (parsing Excel lab sheets) needs the
+    Python server (<code>python app.py</code>) and does not run on this static site — the dosing,
+    chlorine field test, and single-sample ionic balance all work here.
+  </div>
+
+</div>
+<footer>Screening aids — confirm critical readings against the comparator card.</footer>
+</body>
+</html>
