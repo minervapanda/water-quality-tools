@@ -1,0 +1,15 @@
+{
+  "name": "PoolCheck — Swimming Pool Chlorine Test",
+  "short_name": "PoolCheck",
+  "description": "DPD colorimetry free-chlorine test for swimming pools (WHO 1-3 mg/L).",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e8f4f7",
+  "theme_color": "#0288a7",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
