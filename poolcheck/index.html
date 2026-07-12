@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0288a7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PoolCheck">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>PoolCheck — Swimming Pool Chlorine Test</title>
+<style>
+  :root{--teal:#0288a7;--deep:#025e73;--aqua:#26c6da;--red:#c0392b;--amber:#e6842e;
+        --green:#2e7d32;--grey:#557;--lgrey:#eef7f9;--line:#cfe6ec}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:#12333b;background:#e8f4f7;line-height:1.45;-webkit-text-size-adjust:100%}
+  header{background:linear-gradient(135deg,var(--deep),var(--teal));color:#fff;padding:20px 18px;
+         padding-top:calc(20px + env(safe-area-inset-top))}
+  header h1{margin:0;font-size:20px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.9}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;
+        box-shadow:0 1px 3px rgba(2,94,115,.08)}
+  h2{font-size:16px;margin:0 0 10px;color:var(--deep)}
+  label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--grey)}
+  input,select{width:100%;padding:11px;font-size:16px;border:1px solid var(--line);border-radius:9px;min-height:46px}
+  .sop{background:var(--lgrey);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:12px}
+  .sop ol{margin:6px 0 0;padding-left:20px}.sop li{margin:4px 0}
+  .cam-wrap{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;max-height:58vh;margin:0 auto}
+  .cam-wrap video,.cam-wrap canvas{width:100%;height:100%;object-fit:cover;display:block}
+  .roi{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:34%;height:46%;
+       border:3px solid #ffe08a;border-radius:14px;box-shadow:0 0 0 2000px rgba(0,0,0,.28);pointer-events:none}
+  .roi.ok{border-color:#39d353}.roi.bad{border-color:#ff5a5a}
+  .roi-label{position:absolute;left:50%;top:8%;transform:translateX(-50%);color:#fff;font-size:12px;
+       background:rgba(0,0,0,.55);padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none}
+  .shutter{width:78px;height:78px;border-radius:50%;background:#fff;border:5px solid var(--teal);
+       margin:14px auto 0;display:block;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+  .shutter:disabled{opacity:.4;border-color:#999;cursor:not-allowed}
+  .stepchip{display:flex;gap:6px;justify-content:center;margin:0 0 12px;flex-wrap:wrap}
+  .stepchip span{font-size:11.5px;padding:5px 11px;border-radius:20px;background:var(--lgrey);color:var(--grey);font-weight:600}
+  .stepchip span.on{background:var(--teal);color:#fff}
+  .btn2{display:flex;gap:10px;margin-top:12px}
+  .btn2 button,.btn2 label{flex:1;text-align:center;padding:12px;border:1px solid var(--line);border-radius:9px;
+       background:#fff;font-weight:600;cursor:pointer;font-size:14px;min-height:46px}
+  .bigresult{font-size:46px;font-weight:800;text-align:center;margin:6px 0;color:var(--deep)}
+  .band{display:inline-block;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:700}
+  .band.ok{background:#d6f5d6;color:#15691b}.band.low{background:#ffe6c2;color:#8a4b00}
+  .band.high{background:#ffe0b0;color:#8a3b00}.band.zero{background:#ffd2d2;color:#a10000}.band.vhigh{background:#ffc9c9;color:#8a0000}
+  .gauge{height:14px;border-radius:8px;margin:14px 0 6px;position:relative;
+         background:linear-gradient(90deg,#e74c3c 0%,#e6842e 16%,#2ecc71 20%,#2ecc71 60%,#e6842e 72%,#e74c3c 100%)}
+  .gauge .pin{position:absolute;top:-5px;width:4px;height:24px;background:#12333b;border-radius:2px;transform:translateX(-50%)}
+  .gauge-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--grey)}
+  .note{font-size:13px;color:var(--grey);margin-top:10px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:480px){.row2{grid-template-columns:1fr}}
+  .phb{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+  .phb.ok{background:#d6f5d6;color:#15691b}.phb.warn{background:#ffe6c2;color:#8a4b00}
+  .htable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  .htable th,.htable td{border:1px solid var(--line);padding:5px 7px;text-align:right;white-space:nowrap}
+  .htable th{background:var(--lgrey);color:var(--deep);text-align:center}
+  .htable td.l{text-align:left}
+  .daygrp{font-weight:700;background:#dff1f5;color:var(--deep);text-align:left}
+  .rowbtn{background:var(--teal);color:#fff;border:none;padding:11px;border-radius:9px;font-weight:700;width:100%;min-height:46px;cursor:pointer}
+  .rowbtn.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
+  .steps{font-size:12.5px;color:#2a4b53;padding-left:18px;margin:10px 0}
+  .steps li{margin:5px 0}.steps .u{color:var(--teal)}
+  .critical{position:fixed;inset:0;background:#b00020;color:#fff;z-index:999;display:none;
+       flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:24px}
+  .critical.show{display:flex}
+  .critical .warnicon{font-size:64px}.critical h2{font-size:24px;margin:8px 0;color:#fff}
+  .critical .adv{font-size:15px;max-width:480px;line-height:1.5;margin:12px 0}
+  .critical button{font-size:16px;font-weight:700;padding:14px 22px;border:none;border-radius:10px;
+       background:#fff;color:#b00020;cursor:pointer;margin-top:8px;width:min(90%,340px);min-height:52px}
+  .stamped{width:100%;border-radius:10px;margin-top:10px;border:1px solid var(--line)}
+  a.dl{display:inline-block;margin-top:10px;color:var(--teal);font-weight:700;text-decoration:none}
+  .foot{font-size:11px;color:var(--grey);text-align:center;margin:14px 0;padding-bottom:env(safe-area-inset-bottom)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏊 PoolCheck</h1>
+  <p>Swimming-pool free-chlorine test — photograph the DPD sample, get mg/L</p>
+</header>
+<div class="wrap">
+  <div class="card">
+    <h2>1 · Test the pool water</h2>
+    <div class="stepchip"><span class="on">1 · Fill 10 mL</span><span>2 · Add DPD</span><span>3 · Photograph</span><span>4 · Result</span></div>
+    <div class="sop"><b>How to test</b>
+      <ol>
+        <li>Collect <b>10 mL</b> pool water in a clean clear vial.</li>
+        <li>Add the <b>DPD</b> reagent (tablet/powder for free chlorine); cap and invert until an even <b>pink</b> develops.</li>
+        <li>Hold the vial against a <b>pure white</b> card/paper.</li>
+        <li>Fill the outline with the vial and tap the shutter.</li>
+      </ol>
+    </div>
+    <label for="poolName">Pool / location <span style="font-weight:400">— name of the pool or point</span></label>
+    <input id="poolName" type="text" placeholder="e.g. Community Pool — shallow end" autocomplete="off">
+    <div class="row2">
+      <div>
+        <label for="temp">Water temperature (°C)</label>
+        <input id="temp" type="number" step="0.1" min="0" max="60" placeholder="e.g. 28.0" oninput="checkPH()">
+      </div>
+      <div>
+        <label for="ph">pH</label>
+        <input id="ph" type="number" step="0.01" min="0" max="14" placeholder="e.g. 7.4" oninput="checkPH()">
+        <div id="phBadge" style="font-size:12px;margin-top:4px"></div>
+      </div>
+    </div>
+    <label for="dilution">Dilution</label>
+    <select id="dilution">
+      <option value="1">Undiluted (normal)</option>
+      <option value="2">Diluted 1:1 with chlorine-free water (×2) — for very high chlorine</option>
+    </select>
+    <div class="cam-wrap" id="camWrap" style="margin-top:12px">
+      <video id="cam" playsinline autoplay muted></video>
+      <div class="roi" id="roi"></div>
+      <div class="roi-label" id="roiLabel">Align the pink vial · white background</div>
+    </div>
+    <button class="shutter" id="shutter" onclick="captureTest()" disabled></button>
+    <div class="note" id="camHint" style="text-align:center">Starting camera…</div>
+    <div class="btn2">
+      <button onclick="startCam()">↻ Restart camera</button>
+      <label>📁 Photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event)"></label>
+    </div>
+    <div class="sop" style="margin-top:14px"><b>No camera?</b> Read the comparator card and enter mg/L:
+      <div class="btn2" style="margin-top:8px">
+        <input id="manualCl" type="number" step="0.1" min="0" placeholder="e.g. 2.0" style="flex:2">
+        <button onclick="manualResult()" style="background:var(--teal);color:#fff;border:none;flex:1">Use</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Free chlorine</h2>
+    <div class="bigresult" id="clResult">— <small style="font-size:18px;font-weight:400">mg/L</small></div>
+    <div style="text-align:center"><span class="band" id="clBand" style="display:none"></span></div>
+    <div class="gauge"><div class="pin" id="gaugePin" style="left:0;display:none"></div></div>
+    <div class="gauge-lbl"><span>0</span><span>1</span><span>ideal 1–3</span><span>3</span><span>5+</span></div>
+    <ol class="steps" id="clSteps"></ol>
+    <div class="note" id="clNote">Capture a test to see the result.</div>
+    <div id="readingSummary" style="font-size:13px;margin-top:10px;display:none;background:var(--lgrey);border-radius:9px;padding:10px 12px"></div>
+    <button id="saveBtn" class="rowbtn" style="margin-top:12px;display:none" onclick="saveReading()">＋ Save this test to the log</button>
+  </div>
+
+  <div class="card" id="recordBlock" style="display:none">
+    <h2>Test record</h2>
+    <div class="note">The photo is stamped with the pool name, result, coordinates (if allowed) and timestamp at capture. Address &amp; map load when online.</div>
+    <canvas id="stampCanvas" class="stamped"></canvas>
+    <a id="dlStamp" class="dl" download="pool-chlorine-test.png">↓ Save stamped image</a>
+  </div>
+
+  <div class="card" id="historyCard">
+    <h2>Test log — day-wise history</h2>
+    <div class="note" id="histEmpty">No saved tests yet. Run a test and tap “Save this test to the log”. Saved on this device (offline); export any time.</div>
+    <div id="histBody" style="overflow-x:auto;display:none"></div>
+    <div class="btn2" id="histActions" style="display:none">
+      <button class="rowbtn ghost" onclick="exportHistory()">↓ Export CSV</button>
+      <button class="rowbtn ghost" onclick="clearHistory()" style="color:var(--red);border-color:#f3c6c6">Clear log</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    DPD green-channel colorimetry · chlorine = 3.778 × log₁₀(G<sub>white</sub>/G<sub>sample</sub>), R²=0.995.<br>
+    Pool free-chlorine standard: WHO 1–3 mg/L · US CDC/MAHC ≥1 mg/L (pools). A screening aid — confirm against the comparator card.
+  </div>
+</div>
+
+<div class="critical" id="critical">
+  <div class="warnicon">⚠️</div>
+  <h2 id="criticalTitle">ZERO CHLORINE — POOL UNSAFE</h2>
+  <div class="adv" id="criticalAdv"></div>
+  <button onclick="ackCritical()">✓ I acknowledge</button>
+</div>
+
+<script src="poolcheck.js"></script>
+</body>
+</html>
