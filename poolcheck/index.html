@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0288a7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -108,17 +108,25 @@
         <div id="phBadge" style="font-size:12px;margin-top:4px"></div>
       </div>
     </div>
-    <label for="dilution">Dilution</label>
-    <select id="dilution">
-      <option value="1">Undiluted (normal)</option>
-      <option value="2">Diluted 1:1 with chlorine-free water (×2) — for very high chlorine</option>
-    </select>
+    <div class="row2">
+      <div>
+        <label for="dilution">Dilution</label>
+        <select id="dilution">
+          <option value="1">Undiluted (normal)</option>
+          <option value="2">Diluted 1:1 with chlorine-free water (×2) — for very high chlorine</option>
+        </select>
+      </div>
+      <div>
+        <label for="cya">Cyanuric acid / stabilizer <span style="font-weight:400">(mg/L, from test strip — optional)</span></label>
+        <input id="cya" type="number" min="0" step="1" placeholder="e.g. 40">
+      </div>
+    </div>
     <div class="cam-wrap" id="camWrap" style="margin-top:12px">
       <video id="cam" playsinline autoplay muted></video>
       <div class="roi" id="roi"></div>
       <div class="roi-label" id="roiLabel">Align the pink vial · white background</div>
     </div>
-    <button class="shutter" id="shutter" onclick="captureTest()" disabled></button>
+    <button class="shutter" id="shutter" onclick="captureTest()" aria-label="Capture test photo" disabled></button>
     <div class="note" id="camHint" style="text-align:center">Starting camera…</div>
     <div class="btn2">
       <button onclick="startCam()">↻ Restart camera</button>
@@ -134,12 +142,14 @@
 
   <div class="card">
     <h2>Free chlorine</h2>
-    <div class="bigresult" id="clResult">— <small style="font-size:18px;font-weight:400">mg/L</small></div>
-    <div style="text-align:center"><span class="band" id="clBand" style="display:none"></span></div>
-    <div class="gauge"><div class="pin" id="gaugePin" style="left:0;display:none"></div></div>
-    <div class="gauge-lbl"><span>0</span><span>1</span><span>ideal 1–3</span><span>3</span><span>5+</span></div>
-    <ol class="steps" id="clSteps"></ol>
-    <div class="note" id="clNote">Capture a test to see the result.</div>
+    <div aria-live="polite" aria-atomic="true">
+      <div class="bigresult" id="clResult">— <small style="font-size:18px;font-weight:400">mg/L</small></div>
+      <div style="text-align:center"><span class="band" id="clBand" style="display:none"></span></div>
+      <div class="gauge" aria-hidden="true"><div class="pin" id="gaugePin" style="left:0;display:none"></div></div>
+      <div class="gauge-lbl" aria-hidden="true"><span>0</span><span>1</span><span>ideal 1–3</span><span>3</span><span>5+</span></div>
+      <ol class="steps" id="clSteps"></ol>
+      <div class="note" id="clNote">Capture a test to see the result.</div>
+    </div>
     <div id="readingSummary" style="font-size:13px;margin-top:10px;display:none;background:var(--lgrey);border-radius:9px;padding:10px 12px"></div>
     <button id="saveBtn" class="rowbtn" style="margin-top:12px;display:none" onclick="saveReading()">＋ Save this test to the log</button>
   </div>
@@ -167,11 +177,11 @@
   </div>
 </div>
 
-<div class="critical" id="critical">
-  <div class="warnicon">⚠️</div>
+<div class="critical" id="critical" role="alertdialog" aria-modal="true" aria-labelledby="criticalTitle">
+  <div class="warnicon" aria-hidden="true">⚠️</div>
   <h2 id="criticalTitle">ZERO CHLORINE — POOL UNSAFE</h2>
   <div class="adv" id="criticalAdv"></div>
-  <button onclick="ackCritical()">✓ I acknowledge</button>
+  <button id="ackBtn" onclick="ackCritical()">✓ I acknowledge</button>
 </div>
 
 <script src="poolcheck.js"></script>

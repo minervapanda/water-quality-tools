@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AquaTreat — WTP Coagulant Dosing Calculator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b335e">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --navy:#0b335e; --blue:#08519c; --red:#c0392b; --orange:#e6842e;
@@ -183,6 +186,9 @@
         </div>
       </div>
       <div class="hint" id="clHint"></div>
+      <label>Contact tank / clear-water reservoir volume (m³) <span style="font-weight:400;color:var(--grey)">— optional, CT check</span></label>
+      <input id="ctVol" type="number" min="0" step="any" placeholder="e.g. 150" oninput="calc()">
+      <div class="hint">Contact time (min) = volume × 1440 ÷ (MLD × 1000). WHO recommends ≥30 min before the first consumer.</div>
     </div>
 
     <!-- OUTPUTS -->
@@ -207,6 +213,23 @@
         <div class="big" id="disKg">—</div>
         <ol class="steps" id="disSteps"></ol>
         <div class="note" id="disNote"></div>
+      </div>
+      <div id="solnOut" class="result-block" style="display:none">
+        <h3>Prepare the solution</h3>
+        <div class="explain">Bleaching powder / hypochlorite is dosed as a dissolved batch solution, not as dry powder.</div>
+        <div class="row2">
+          <div>
+            <label style="color:#cfe0f2">Solution strength S (% w/v)</label>
+            <input id="solnS" type="number" value="5" min="0.5" max="20" step="any" oninput="calc()">
+            <div class="hint" style="color:#9ec3e8">CPHEEO: 2–5%</div>
+          </div>
+          <div>
+            <label style="color:#cfe0f2">Batch tank volume V (L)</label>
+            <input id="solnV" type="number" value="500" min="1" step="any" oninput="calc()">
+          </div>
+        </div>
+        <ol class="steps" id="solnSteps"></ol>
+        <div class="note" id="solnNote"></div>
       </div>
       <div class="formula" id="formulaBox"></div>
       <div class="result-block" style="background:rgba(255,255,255,.05)">
@@ -365,6 +388,8 @@
           <div><label>Sodium (as Na)</label><input id="ibNa" type="number" step="any" min="0" oninput="ionCalc()"></div>
           <div><label>Potassium (as K)</label><input id="ibK" type="number" step="any" min="0" oninput="ionCalc()"></div>
         </div>
+        <label>Measured total hardness (as CaCO₃, mg/L) <span style="font-weight:400;color:var(--grey)">— optional, checked against Ca + Mg</span></label>
+        <input id="ibTH" type="number" step="any" min="0" oninput="ionCalc()">
         <h3 style="font-size:14px;margin:14px 0 4px">Anions (mg/L)</h3>
         <div class="row2">
           <div><label>Bicarbonate (HCO₃) <span style="font-weight:400;color:var(--grey)">or alkalinity as CaCO₃*</span></label><input id="ibHCO3" type="number" step="any" min="0" oninput="ionCalc()"></div>
@@ -417,10 +442,11 @@
 
 <script>
 // ---- engine (mirrors aquatreat_engine.py exactly) ----
-var L_UK=4.54609, L_US=3.78541, BLEACH=0.33, PAC_DENS=1.18, FIELD_MAX=550;
+var L_UK=4.54609, L_US=3.78541, BLEACH=0.33, PAC_DENS=1.18, FIELD_MIN=10, FIELD_MAX=550;
 var COAG_FORMULA={"Alum Gr.IV":[11.51,0.552],"PAC":[9.474,0.536],"Alum Gr.II":[18.86,0.537]};
 function flowToMld(v,u){return v*(u==="MLD"?1:(u==="UK_MGD"?L_UK:L_US));}
 function fmt(x,d){if(!isFinite(x)||x===null)return "—";return x.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function doseKgPerMG(ntu,chem){var c=COAG_FORMULA[chem];return ntu>0?c[0]*Math.pow(ntu,c[1]):0;}   // kg per million UK gallons
 function doseMgL(ntu,chem){return doseKgPerMG(ntu,chem)/L_UK;}                                       // mg/L
 
@@ -438,10 +464,12 @@ function calc(){
   var kg=dose_mgL*mld;
 
   // turbidity hint / range flag
-  var beyond=ntu>FIELD_MAX;
+  var beyond=ntu>FIELD_MAX, below=(ntu>0 && ntu<FIELD_MIN);
   document.getElementById('ntuHint').innerHTML=(ntu<=0)?"Enter turbidity > 0":
     ("Dose looked up from this turbidity."+(beyond?
-      ' <span class="flag warn">'+ntu+' NTU is beyond the tabulated field data (10–550 NTU) — formula extrapolation</span>':
+      ' <span class="flag warn">'+ntu+' NTU is beyond the tabulated field data (10–550 NTU) — formula extrapolation. Monsoon SOP: re-test raw turbidity and re-run jar test every 2–4 h during flood flashes; consider pre-settling before chemical dosing.</span>':
+      below?
+      ' <span class="flag warn">below tabulated field data (10–550 NTU) — extrapolated. Low-turbidity water coagulates poorly — confirm with jar test; typical minimum practical alum dose 5–10 mg/L for sweep flocculation (CPHEEO).</span>':
       ' <span class="flag ok">within tabulated 10–550 NTU</span>'));
   document.getElementById('flowHint').textContent=(unit==="UK_MGD")?"1 UK gallon = 4.54609 L  ·  "+fmt(mld,3)+" MLD":
     (unit==="US_MGD")?"1 US gallon = 3.78541 L  ·  "+fmt(mld,3)+" MLD":fmt(mld,3)+" MLD = "+fmt(mld*1000,0)+" m³/day";
@@ -502,8 +530,8 @@ function calc(){
   // disinfection (optional)
   var dis=document.getElementById('dis').value;
   document.getElementById('clPctWrap').style.display=(dis==="custom")?"block":"none";
-  var disBox=document.getElementById('disOut');
-  if(dis==="none"){ disBox.style.display="none"; }
+  var disBox=document.getElementById('disOut'), solnBox=document.getElementById('solnOut');
+  if(dis==="none"){ disBox.style.display="none"; solnBox.style.display="none"; }
   else{
     disBox.style.display="block";
     var cld=parseFloat(document.getElementById('clDose').value)||0;
@@ -518,12 +546,51 @@ function calc(){
               fmt(cld,2)+' mg/L × '+fmt(mld,3)+' MLD = <b>'+fmt(clKg,1)+' kg/day of chlorine</b></span>');
       ds.push('<b>Product needed</b> = chlorine ÷ available-chlorine strength:<br><span class="u">'+
               fmt(clKg,1)+' ÷ '+fmt(frac*100,0)+'% = <b>'+fmt(prodKg,1)+' kg/day of '+agentName.toLowerCase()+'</b></span>');
+      // contact-time (CT) check — WHO ≥30 min
+      var ctVol=parseFloat(document.getElementById('ctVol').value)||0;
+      if(ctVol>0 && mld>0){
+        var tMin=ctVol*1440/(mld*1000);
+        ds.push('<b>Contact time</b> = V × 1440 / (MLD × 1000):<br><span class="u">'+
+                fmt(ctVol,1)+' m³ × 1440 ÷ ('+fmt(mld,3)+' × 1000) = <b>'+fmt(tMin,0)+' min</b></span> '+
+                (tMin>=30?'<span class="flag ok">theoretical detention ≥30 min — actual contact is shorter if the tank is poorly baffled (T10/T ≈ 0.3–0.7)</span>':
+                 '<span class="flag warn">below the WHO 30-min contact criterion — increase contact volume or reduce flow</span>'));
+      }
       document.getElementById('disSteps').innerHTML=ds.map(function(x){return '<li>'+x+'</li>';}).join('');
-      document.getElementById('disNote').innerHTML=agentName+" is only "+fmt(frac*100,0)+"% chlorine, so you need more product than pure chlorine. Keep 0.2–1.0 mg/L residual at consumer end (IS 10500:2012).";
+      var dn=agentName+" is only "+fmt(frac*100,0)+"% chlorine, so you need more product than pure chlorine. Keep 0.2–1.0 mg/L residual at consumer end (IS 10500:2012). "+
+        "WHO GDWQ: effective chlorination needs ≥0.5 mg/L free residual after ≥30 min at pH &lt; 8.0 and turbidity ≤ 1 NTU (~Ct 15 mg·min/L); at pH &gt; 8 roughly double the contact time (HOCl pKa 7.54).";
+      if(dis==="bleaching_powder") dn+=' Stored bleaching powder loses available chlorine (fresh 33–35%); enter the last iodometrically tested % via the "Other hypochlorite" option.';
+      document.getElementById('disNote').innerHTML=dn;
     } else { document.getElementById('disKg').textContent="—";document.getElementById('disSteps').innerHTML="";
              document.getElementById('disNote').innerHTML=(mld<=0)?
                '<span class="flag warn">waiting for input</span> Enter the plant flow above.':
                '<span class="flag warn">waiting for input</span> Enter the target chlorine dose (mg/L) above.'; }
+
+    // ---- bleaching-powder / hypochlorite solution preparation ----
+    if((dis==="bleaching_powder"||dis==="custom") && prodKg>0 && isFinite(prodKg)){
+      solnBox.style.display="block";
+      var S=parseFloat(document.getElementById('solnS').value)||5;
+      var V=parseFloat(document.getElementById('solnV').value)||500;
+      var perBatch=V*S/100;                                  // kg powder dissolved per batch
+      var batches=Math.ceil(prodKg/perBatch);
+      var lastBatch=prodKg-(batches-1)*perBatch;             // powder in the final (partial) batch
+      var solLday=prodKg/(S/100);                            // solution demand, L/day
+      var solLh=solLday/24, solMlMin=solLday*1000/1440;
+      var endurance=solLday>0 ? V/solLday : 0;               // days one batch tank lasts
+      var ss=[];
+      ss.push('<b>Powder per batch</b> = V × S/100:<br><span class="u">'+
+              fmt(V,0)+' L × '+fmt(S,1)+'/100 = <b>'+fmt(perBatch,1)+' kg per batch</b></span>');
+      ss.push('<b>Batches per day</b> = ⌈'+fmt(prodKg,1)+' kg ÷ '+fmt(perBatch,1)+' kg⌉ = <b>'+batches+'</b>'+
+              (batches>1?'<br><span class="u">last batch takes ≈ '+fmt(lastBatch,1)+' kg</span>':''));
+      ss.push('<b>Solution demand</b> = product ÷ (S/100):<br><span class="u">'+
+              fmt(prodKg,1)+' ÷ '+fmt(S/100,2)+' = <b>'+fmt(solLday,0)+' L/day</b> = '+fmt(solLh,1)+' L/h = <b>'+fmt(solMlMin,0)+' mL/min</b><br>'+
+              'verify: collect the drip for 60 s — expect '+fmt(solMlMin,0)+' mL</span>');
+      ss.push('<b>Tank endurance</b> = V ÷ L/day:<br><span class="u">'+
+              fmt(V,0)+' ÷ '+fmt(solLday,0)+' = <b>'+fmt(endurance,2)+' day</b></span>'+
+              (endurance<0.5?' <span class="flag warn">tank empties mid-shift — prepare a second batch</span>':''));
+      document.getElementById('solnSteps').innerHTML=ss.map(function(x){return '<li>'+x+'</li>';}).join('');
+      document.getElementById('solnNote').innerHTML='Decant only the supernatant (lime sludge settles ~1 h); prepare fresh daily — solutions lose available chlorine on standing.';
+      try{ localStorage.setItem('aquatreat_soln_v1', JSON.stringify({S:S,V:V})); }catch(e){}
+    } else { solnBox.style.display="none"; }
   }
 
   // formula trace — shown in the field table's native units (MG = million gallons)
@@ -571,12 +638,20 @@ function exportDosage(){
   if(isLiquid){ var sg=parseFloat(document.getElementById('sg').value)||1.18; L.push('  (liquid volume    : '+fmt(kg/sg,1)+' L/day at SG '+fmt(sg,3)+')'); }
   // disinfection if set
   var cld=parseFloat(document.getElementById('clDose').value)||0;
-  if(cld>0){ var frac=(parseFloat(document.getElementById('clPct').value)||33)/100;
+  var dis=document.getElementById('dis').value;
+  if(cld>0 && dis!=='none'){
+    // same per-agent available-chlorine fraction as calc() — clPct only applies to "custom"
+    var frac=(dis==='chlorine_gas')?1.0:(dis==='custom')?((parseFloat(document.getElementById('clPct').value)||33)/100):BLEACH;
     var agent=document.getElementById('dis').options[document.getElementById('dis').selectedIndex].text;
     var clKg=cld*mld, prodKg=clKg/frac;
     L.push('--------------------------------','Disinfectant        : '+agent,
       'Chlorine dose       : '+fmt(cld,2)+' mg/L',
-      'PRODUCT TO ADD      : '+fmt(prodKg,1)+' kg/day'); }
+      'PRODUCT TO ADD      : '+fmt(prodKg,1)+' kg/day');
+    if((dis==='bleaching_powder'||dis==='custom') && prodKg>0){
+      var S=parseFloat(document.getElementById('solnS').value)||5;
+      var solLday=prodKg/(S/100);
+      L.push('Solution ('+fmt(S,1)+'% w/v)  : '+fmt(solLday,0)+' L/day',
+        'Drip rate           : '+fmt(solLday*1000/1440,0)+' mL/min'); } }
   var txt=L.join('\n');
   pre.style.display='block'; pre.textContent=txt;
   dl.style.display='inline-block'; dl.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
@@ -631,11 +706,32 @@ function ionCalc(){
   var pin=document.getElementById('ibPin'); pin.style.display='block';
   pin.style.left=Math.max(0,Math.min(100,(Math.abs(ibe)/15)*100))+'%';
   var f=function(x){return x.toFixed(3);};
-  document.getElementById('ibSteps').innerHTML=[
+  var steps=[
     'ΣCations = Ca/20.04 + Mg/12.15 + Na/22.99 + K/39.10 = <span class="u"><b>'+f(sc)+' meq/L</b></span>',
     'ΣAnions = HCO₃'+(alkMode?'(as CaCO₃)':'')+' + CO₃ + SO₄ + Cl + NO₃ = <span class="u"><b>'+f(sa)+' meq/L</b></span>',
     'IBE = (ΣCat − ΣAn)/(ΣCat + ΣAn) × 100 = <span class="u"><b>'+ibe.toFixed(1)+'%</b></span>'
-  ].map(function(x){return '<li>'+x+'</li>';}).join('');
+  ];
+  // hardness consistency check (Standard Methods 2340B: TH = 2.497·Ca + 4.118·Mg)
+  if(Ca>0||Mg>0){
+    var TH_calc=2.497*Ca+4.118*Mg;
+    var usgs=TH_calc<60?'soft':TH_calc<=120?'moderately hard':TH_calc<=180?'hard':'very hard';
+    var isBadge=TH_calc<=200?'<span class="badge exc">IS 10500:2012 acceptable ≤200</span>':
+                TH_calc<=600?'<span class="badge acc">IS 10500:2012 permissible 200–600</span>':
+                             '<span class="badge bad">IS 10500:2012 exceeded &gt;600</span>';
+    steps.push('Calculated hardness = 2.497×Ca + 4.118×Mg = <span class="u"><b>'+TH_calc.toFixed(0)+' mg/L as CaCO₃</b></span> — '+usgs+' (USGS) '+isBadge);
+    var TH_meas=_num('ibTH');
+    if(TH_meas>0){
+      var diff=Math.abs(TH_meas-TH_calc)/TH_calc*100;
+      var db=diff<=5?'<span class="badge exc">'+diff.toFixed(1)+'% — consistent</span>':
+             diff<=10?'<span class="badge acc">'+diff.toFixed(1)+'% — marginal</span>':
+                      '<span class="badge bad">'+diff.toFixed(1)+'% — re-analyse Ca/Mg or the EDTA titration</span>';
+      steps.push('Hardness check: measured '+TH_meas.toFixed(0)+' vs calculated '+TH_calc.toFixed(0)+' mg/L as CaCO₃ → '+db);
+    }
+    var alkCaCO3=50.04*(alkMode? an.HCO3 : an.HCO3+an.CO3);
+    var carbH=Math.min(TH_calc,alkCaCO3), noncarbH=TH_calc-carbH;
+    steps.push('Carbonate hardness = min(TH, alkalinity '+alkCaCO3.toFixed(0)+' as CaCO₃) = <span class="u"><b>'+carbH.toFixed(0)+' mg/L</b></span> · non-carbonate = <span class="u"><b>'+noncarbH.toFixed(0)+' mg/L as CaCO₃</b></span>');
+  }
+  document.getElementById('ibSteps').innerHTML=steps.map(function(x){return '<li>'+x+'</li>';}).join('');
   var sign=ibe>0?'cation excess (anions likely under-reported — check alkalinity)':(ibe<0?'anion excess (cations likely under-reported)':'balanced');
   document.getElementById('ibNote').textContent=(Math.abs(ibe)<=5?'Internally consistent — ':(Math.abs(ibe)<=10?'Marginally consistent — ':'Fails the balance check — '))+sign+'.';
 }
@@ -646,7 +742,7 @@ function ionUpload(){
   st.textContent='Uploading & validating '+fs.length+' file(s)…'; out.innerHTML='';
   var fd=new FormData(); for(var i=0;i<fs.length;i++) fd.append('files',fs[i]);
   fetch('/api/ionic',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){
-    if(j.error){ st.innerHTML='<span style="color:var(--red)">'+j.error+'</span>'; return; }
+    if(j.error){ st.innerHTML='<span style="color:var(--red)">'+esc(j.error)+'</span>'; return; }
     st.textContent=j.n_samples+' sample(s) from '+j.n_files+' file(s) validated.';
     out.innerHTML=renderIonReport(j);
   }).catch(function(){ st.innerHTML='<span style="color:var(--red)">Server not reachable — run <code>python app.py</code> on a computer for report upload.</span>'; });
@@ -657,10 +753,14 @@ function renderIonReport(j){
   h+='<div style="overflow-x:auto"><table class="ibtable"><tr><th>Sample ID</th><th>Source</th><th>Type</th><th>Date</th><th>Location</th><th>ΣCat</th><th>ΣAn</th><th>IBE %</th><th>Grade</th></tr>';
   j.rows.forEach(function(r){
     var g=(Math.abs(r.ibe)<=5?'exc':(Math.abs(r.ibe)<=10?'acc':'bad'));
-    h+='<tr><td class="l">'+(r.id||'—')+'</td><td class="l">'+(r.name||'—')+'</td><td>'+(r.type||'—')+'</td><td>'+(r.date||'—')+'</td><td class="l">'+(r.loc||'—')+'</td><td>'+r.sc.toFixed(2)+'</td><td>'+r.sa.toFixed(2)+'</td><td>'+r.ibe.toFixed(1)+'</td><td><span class="badge '+g+'">'+(g==='exc'?'Excellent':(g==='acc'?'Acceptable':'Re-analyse'))+'</span></td></tr>';
+    h+='<tr><td class="l">'+esc(r.id||'—')+'</td><td class="l">'+esc(r.name||'—')+'</td><td>'+esc(r.type||'—')+'</td><td>'+esc(r.date||'—')+'</td><td class="l">'+esc(r.loc||'—')+'</td><td>'+r.sc.toFixed(2)+'</td><td>'+r.sa.toFixed(2)+'</td><td>'+r.ibe.toFixed(1)+'</td><td><span class="badge '+g+'">'+(g==='exc'?'Excellent':(g==='acc'?'Acceptable':'Re-analyse'))+'</span></td></tr>';
   });
   h+='</table></div>';
-  if(j.download) h+='<a class="dl" href="'+j.download+'" style="display:inline-block;margin-top:10px;color:var(--blue);font-weight:700;text-decoration:none">↓ Download validation CSV</a>';
+  if(j.download){
+    var dlHref=null;
+    try{ var u=new URL(j.download, location.href); if(u.protocol!=='https:'&&u.protocol!=='http:') throw 0; dlHref=u.href; }catch(e){ /* drop the link */ }
+    if(dlHref) h+='<a class="dl" href="'+esc(dlHref)+'" style="display:inline-block;margin-top:10px;color:var(--blue);font-weight:700;text-decoration:none">↓ Download validation CSV</a>';
+  }
   h+='</div>'; return h;
 }
 
@@ -865,16 +965,16 @@ function generateReport(){
     .then(function(r){return r.json();})
     .then(function(j){
       document.getElementById('genBtn').disabled=false;
-      if(!j.ok){ status.innerHTML='<span style="color:var(--red)">'+(j.error||'Failed')+'</span>'; return; }
+      if(!j.ok){ status.innerHTML='<span style="color:var(--red)">'+esc(j.error||'Failed')+'</span>'; return; }
       var s=j.summary;
       status.innerHTML='<span style="color:var(--green)">Done — '+s.n_readings+' turbidity readings across '+s.n_dates+' dates.</span>';
       var h='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
         '<tr style="background:var(--navy);color:#fff"><th style="padding:6px;text-align:left">Date</th><th>n</th>'+
         '<th>Turbidity mean (NTU)</th><th>min–max</th><th>Mean dose (mg/L)</th></tr>';
       j.by_date.forEach(function(r,i){ h+='<tr style="background:'+(i%2?'#fff':'var(--lgrey)')+'">'+
-        '<td style="padding:6px">'+r.date+'</td><td style="text-align:center">'+r.n_samples+'</td>'+
-        '<td style="text-align:center">'+r.turbidity_mean+'</td><td style="text-align:center">'+r.turbidity_min+'–'+r.turbidity_max+'</td>'+
-        '<td style="text-align:center">'+r.dose_mgL_mean+'</td></tr>'; });
+        '<td style="padding:6px">'+esc(r.date)+'</td><td style="text-align:center">'+esc(r.n_samples)+'</td>'+
+        '<td style="text-align:center">'+esc(r.turbidity_mean)+'</td><td style="text-align:center">'+esc(r.turbidity_min)+'–'+esc(r.turbidity_max)+'</td>'+
+        '<td style="text-align:center">'+esc(r.dose_mgL_mean)+'</td></tr>'; });
       h+='</table></div>';
       h+='<div style="margin-top:10px"><a href="/api/batch/download/samples" style="color:var(--blue);font-weight:600">↓ per-sample CSV</a>  ·  '+
          '<a href="/api/batch/download/dates" style="color:var(--blue);font-weight:600">↓ by-date CSV</a></div>';
@@ -883,7 +983,16 @@ function generateReport(){
     .catch(function(e){ document.getElementById('genBtn').disabled=false;
       status.innerHTML='<span style="color:var(--red)">This needs the running Python app (python app.py). Error: '+e+'</span>'; });
 }
+// restore persisted solution-preparation settings, then run the first calculation
+try{
+  var _soln=JSON.parse(localStorage.getItem('aquatreat_soln_v1')||'null');
+  if(_soln){
+    if(_soln.S>0) document.getElementById('solnS').value=_soln.S;
+    if(_soln.V>0) document.getElementById('solnV').value=_soln.V;
+  }
+}catch(e){}
 calc();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){});}
 </script>
 </body>
 </html>

@@ -4,6 +4,8 @@ var DPD_K=3.778, POOL_MIN=1.0, POOL_IDEAL_HIGH=3.0, POOL_MAX=5.0, RELIABLE_MAX=3
 var camStream=null, roiTimer=null, lastGeo=null, lastReading=null;
 
 function fmt(x,d){ if(!isFinite(x)||x===null) return "—"; return Number(x).toFixed(d); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function _median(a){ if(!a.length) return 0; a.sort(function(x,y){return x-y;}); return a[a.length>>1]; }
 
 function requestGeo(){
@@ -56,9 +58,16 @@ function chlorineFromGreen(gS,gW,dil){
   return {A:A,conc:conc,adviseDil:conc>RELIABLE_MAX};
 }
 function classify(conc){
+  // With cyanuric-acid-stabilized chlorine, MAHC 2023 requires a minimum FC of 2.0 mg/L.
+  var cya=parseFloat(document.getElementById('cya').value)||0;
   if(conc<=0.049) return {band:'zero',label:'ZERO — unsafe'};
-  if(conc<POOL_MIN) return {band:'low',label:'Low (<1) — under-chlorinated'};
-  if(conc<=POOL_IDEAL_HIGH) return {band:'ok',label:'Safe (1–3 mg/L)'};
+  if(cya>0){
+    if(conc<2.0) return {band:'low',label:'Low (<2, stabilized) — under-chlorinated'};
+    if(conc<=POOL_IDEAL_HIGH) return {band:'ok',label:'Safe (2–3 mg/L, stabilized)'};
+  }else{
+    if(conc<POOL_MIN) return {band:'low',label:'Low (<1) — under-chlorinated'};
+    if(conc<=POOL_IDEAL_HIGH) return {band:'ok',label:'Safe (1–3 mg/L)'};
+  }
   if(conc<=POOL_MAX) return {band:'high',label:'High (>3) — over-chlorinated'};
   return {band:'vhigh',label:'Very high (>5)'};
 }
@@ -97,22 +106,46 @@ function renderResult(r,px){
     st.push('Chlorine = 3.778 × A'+(dil>1?' × '+dil+' (dilution)':'')+' = <span class="u"><b>'+fmt(r.conc,2)+' mg/L</b></span>');
   } else if(r.manual){ st.push('Manual card reading: <b>'+fmt(r.conc,2)+' mg/L</b>'); }
   document.getElementById('clSteps').innerHTML=st.map(function(x){return '<li>'+x+'</li>';}).join('');
-  var note={zero:'No disinfection — see the alert.',low:'Below 1 mg/L. Raise chlorination before allowing bathers.',
-    ok:'Within the safe pool range (WHO 1–3 mg/L).',high:'Above 3 mg/L — reduce dosing; high chlorine irritates eyes/skin.',
+  var cyaRaw=document.getElementById('cya').value;
+  var cya=(cyaRaw!==''&&isFinite(parseFloat(cyaRaw)))?parseFloat(cyaRaw):null;
+  var note={zero:'No disinfection — see the alert.',
+    low:'Below '+(cya>0?'2 mg/L (MAHC stabilized minimum)':'1 mg/L')+'. Raise chlorination before allowing bathers.',
+    ok:'Within the safe pool range ('+(cya>0?'2–3 mg/L with stabilizer':'WHO 1–3 mg/L')+').',
+    high:'Above 3 mg/L — reduce dosing; high chlorine irritates eyes/skin.',
     vhigh:'Well above the safe range — keep bathers out until it falls.'}[c.band];
   if(r.adviseDil) note+=' Reading is high — for accuracy, dilute 1:1 with chlorine-free water, set Dilution ×2, and re-test.';
+  if(cya>90) note+=' CYA '+cya+' mg/L exceeds the MAHC maximum (90) — replace '+Math.round((1-90/cya)*100)+'% of pool water to dilute the stabilizer.';
   document.getElementById('clNote').textContent=note;
-  // full reading summary (free Cl + temp + pH) per the technical note
+  // full reading summary (free Cl + temp + pH + CYA + active HOCl) per the technical note
   var temp=document.getElementById('temp').value, ph=document.getElementById('ph').value;
+  var tempN=(temp!==''?parseFloat(temp):null), phN=(ph!==''?parseFloat(ph):null);
+  // Active HOCl fraction from pH & temperature — Morris (1966) pKa fit (7.54 at 25 °C).
+  var hoclF=null, activeCl=null, hoclHTML='';
+  if(phN!==null&&isFinite(phN)){
+    var T=(isFinite(tempN)?tempN:25)+273.15;
+    var pKa=3000.0/T-10.0686+0.0253*T;
+    var f=1/(1+Math.pow(10,phN-pKa));
+    hoclF=f; activeCl=f*r.conc;
+    var badge;
+    if(f<0.20) badge='<span class="phb warn" style="background:#ffd2d2;color:#a10000">disinfection largely ineffective at this pH even though FC reads adequate — correct pH first</span>';
+    else if(phN>7.8) badge='<span class="phb warn">raise efficacy — lower pH toward 7.2–7.8</span>';
+    else if(f>=0.45) badge='<span class="phb ok">good HOCl fraction</span>';
+    else badge='<span class="phb ok">acceptable — pH at the high end of 7.2–7.8</span>';
+    hoclHTML='<br>Active HOCl: '+Math.round(f*100)+'% → effective chlorine '+fmt(activeCl,2)+' mg/L '+badge;
+  }
   lastReading={conc:r.conc, band:c.band, bandLabel:c.label, manual:!!r.manual,
-    temp:(temp!==''?parseFloat(temp):null), ph:(ph!==''?parseFloat(ph):null),
+    temp:tempN, ph:phN, cya:cya,
+    hoclFraction:(hoclF!==null?parseFloat(hoclF.toFixed(3)):null),
+    activeCl:(activeCl!==null?parseFloat(activeCl.toFixed(2)):null),
     pool:(document.getElementById('poolName').value||'').trim(),
     lat:lastGeo?lastGeo.lat:null, lon:lastGeo?lastGeo.lon:null, ts:new Date().toISOString()};
   var sum=document.getElementById('readingSummary');
   sum.style.display='block';
   sum.innerHTML='<b>Reading</b> — Free chlorine <b>'+fmt(r.conc,2)+' mg/L</b>'
     +'  ·  Temp '+(lastReading.temp!==null?fmt(lastReading.temp,1)+' °C':'—')
-    +'  ·  pH '+(lastReading.ph!==null?fmt(lastReading.ph,2):'—');
+    +'  ·  pH '+(lastReading.ph!==null?fmt(lastReading.ph,2):'—')
+    +(cya!==null?'  ·  CYA '+fmt(cya,0)+' mg/L':'')
+    +hoclHTML;
   document.getElementById('saveBtn').style.display='block';
   if(c.band==='zero') triggerCritical();
 }
@@ -129,12 +162,22 @@ function checkPH(){
 // ---- day-wise on-device test log ----
 var LOGKEY='poolcheck_log_v1';
 function loadLog(){ try{ return JSON.parse(localStorage.getItem(LOGKEY)||'[]'); }catch(e){ return []; } }
-function saveLog(a){ try{ localStorage.setItem(LOGKEY, JSON.stringify(a)); }catch(e){} }
+var _capWarned=false;
+function saveLog(a){
+  if(a.length>2000){
+    a.splice(0, a.length-2000);
+    if(!_capWarned){ _capWarned=true; console.warn('PoolCheck: log capped at 2000 records — oldest tests were dropped. Export the CSV to keep them.'); }
+  }
+  try{ localStorage.setItem(LOGKEY, JSON.stringify(a)); return true; }
+  catch(e){ alert('Could not save — device storage is full. Export the CSV, then clear old tests.'); return false; }
+}
 function saveReading(){
   if(!lastReading){ return; }
-  var log=loadLog(); log.push(lastReading); saveLog(log);
-  document.getElementById('saveBtn').textContent='✓ Saved to log';
-  setTimeout(function(){ document.getElementById('saveBtn').textContent='＋ Save this test to the log'; },1500);
+  var log=loadLog(); log.push(lastReading);
+  if(saveLog(log)){
+    document.getElementById('saveBtn').textContent='✓ Saved to log';
+    setTimeout(function(){ document.getElementById('saveBtn').textContent='＋ Save this test to the log'; },1500);
+  }
   renderHistory();
 }
 function renderHistory(){
@@ -142,37 +185,50 @@ function renderHistory(){
   var empty=document.getElementById('histEmpty'), body=document.getElementById('histBody'), act=document.getElementById('histActions');
   if(!log.length){ empty.style.display='block'; body.style.display='none'; act.style.display='none'; return; }
   empty.style.display='none'; body.style.display='block'; act.style.display='flex';
-  // group day-wise (most recent first)
+  // group day-wise by ISO YYYY-MM-DD key (locale-independent; string sort is chronological)
   var byDay={};
-  log.forEach(function(r){ var d=new Date(r.ts); var key=d.toLocaleDateString(); (byDay[key]=byDay[key]||[]).push(r); });
-  var days=Object.keys(byDay).sort(function(a,b){ return new Date(b)-new Date(a); });
+  log.forEach(function(r){ var d=new Date(r.ts);
+    var key=isFinite(d)?d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2):String(r.ts||'').slice(0,10);
+    (byDay[key]=byDay[key]||[]).push(r); });
+  var days=Object.keys(byDay).sort().reverse();
   var h='<table class="htable"><tr><th>Time</th><th>Pool</th><th>Free Cl (mg/L)</th><th>Band</th><th>Temp °C</th><th>pH</th></tr>';
   days.forEach(function(day){
     var rows=byDay[day].sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
     var avg=rows.reduce(function(s,r){return s+r.conc;},0)/rows.length;
-    h+='<tr><td class="daygrp" colspan="6">'+day+'  —  '+rows.length+' test(s), mean Cl '+fmt(avg,2)+' mg/L</td></tr>';
+    var disp=new Date(day+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+    h+='<tr><td class="daygrp" colspan="6">'+disp+'  —  '+rows.length+' test(s), mean Cl '+fmt(avg,2)+' mg/L</td></tr>';
     rows.forEach(function(r){
       var t=new Date(r.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      h+='<tr><td>'+t+'</td><td class="l">'+(r.pool||'—')+'</td><td><b>'+fmt(r.conc,2)+'</b></td><td class="l">'+(r.bandLabel||'')+'</td><td>'+(r.temp!=null?fmt(r.temp,1):'—')+'</td><td>'+(r.ph!=null?fmt(r.ph,2):'—')+'</td></tr>';
+      h+='<tr><td>'+t+'</td><td class="l">'+esc(r.pool||'—')+'</td><td><b>'+fmt(r.conc,2)+'</b></td><td class="l">'+esc(r.bandLabel||'')+'</td><td>'+(r.temp!=null?fmt(r.temp,1):'—')+'</td><td>'+(r.ph!=null?fmt(r.ph,2):'—')+'</td></tr>';
     });
   });
   h+='</table>';
   body.innerHTML=h;
 }
+// RFC 4180 quoting + spreadsheet formula-injection neutralization (=, +, -, @, tab, CR prefixes)
+function csvCell(v){
+  var s=String(v==null?'':v);
+  if(/^[=+\-@\t\r]/.test(s.trim())) s="'"+s;
+  if(/[",\r\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
 function exportHistory(){
   var log=loadLog(); if(!log.length) return;
-  var head=['timestamp','date','time','pool','free_chlorine_mg_L','band','temperature_C','pH','latitude','longitude','source'];
-  var lines=[head.join(',')];
+  var head=['timestamp','date','time','pool','free_chlorine_mg_L','band','temperature_C','pH','cyanuric_acid_mg_L','hocl_fraction','active_chlorine_mg_L','latitude','longitude','source'];
+  var lines=[head.map(csvCell).join(',')];
   log.forEach(function(r){
     var d=new Date(r.ts);
-    var row=[r.ts, d.toLocaleDateString(), d.toLocaleTimeString(), '"'+(r.pool||'').replace(/"/g,'""')+'"',
+    var row=[r.ts, d.toLocaleDateString(), d.toLocaleTimeString(), r.pool||'',
       fmt(r.conc,2), r.bandLabel||'', r.temp!=null?r.temp:'', r.ph!=null?r.ph:'',
+      r.cya!=null?r.cya:'', r.hoclFraction!=null?r.hoclFraction:'', r.activeCl!=null?r.activeCl:'',
       r.lat!=null?r.lat:'', r.lon!=null?r.lon:'', r.manual?'manual card':'photo'];
-    lines.push(row.join(','));
+    lines.push(row.map(csvCell).join(','));
   });
-  var blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  // UTF-8 BOM so Excel decodes Devanagari/Odia pool names; CRLF per RFC 4180
+  var blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='poolcheck_log_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  URL.revokeObjectURL(a.href);
 }
 function clearHistory(){
   if(confirm('Clear all saved tests on this device? Export first if you need them.')){ saveLog([]); renderHistory(); }
@@ -228,10 +284,12 @@ function triggerCritical(){
     'CRITICAL: No free chlorine detected. The pool has no disinfection and is unsafe for bathers.<br><br>'+
     '<b>Immediate action:</b> close the pool to bathers, check the chlorinator/dosing pump, and re-chlorinate to restore 1–3 mg/L free chlorine before reopening.';
   document.getElementById('critical').classList.add('show');
+  document.getElementById('ackBtn').focus();
 }
 function ackCritical(){
   document.getElementById('critical').classList.remove('show');
   document.getElementById('clNote').textContent='ZERO chlorine acknowledged at '+new Date().toLocaleTimeString()+'. Re-chlorinate and re-test before reopening.';
+  document.getElementById('shutter').focus();
 }
 
 // ---- init ----
