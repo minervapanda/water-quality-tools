@@ -3,6 +3,20 @@
 var DPD_K=3.778, POOL_MIN=1.0, POOL_IDEAL_HIGH=3.0, POOL_MAX=5.0, RELIABLE_MAX=3.0;
 var camStream=null, roiTimer=null, lastGeo=null, lastReading=null;
 
+// The app is used in both the US and India, so dates follow the device's REGION
+// (7/24/2026 vs 24/07/2026) — but the language is pinned to English and digits to
+// Latin. Without the pin, a phone set to Marathi/Bengali renders Devanagari digits, which
+// no field record should contain.
+var APP_LOCALE=(function(){
+  try{
+    var o=new Intl.DateTimeFormat().resolvedOptions();
+    var region=(String(o.locale).match(/-([A-Za-z]{2})(?:-|$)/)||[])[1];
+    if(region) region=region.toUpperCase();
+    if(!region){ var tz=o.timeZone||'';                       // locale carried no region
+      region=/Kolkata|Calcutta/i.test(tz)?'IN':(/America\//.test(tz)?'US':''); }
+    return 'en'+(region?'-'+region:'')+'-u-nu-latn';
+  }catch(e){ return 'en-u-nu-latn'; }
+})();
 function fmt(x,d){ if(!isFinite(x)||x===null) return "—"; return Number(x).toFixed(d); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -72,7 +86,27 @@ function classify(conc){
   return {band:'vhigh',label:'Very high (>5)'};
 }
 
-function captureTest(){ var v=document.getElementById('cam'); finishTest(analyzeFrame(v,v.videoWidth||960,v.videoHeight||1280),v,v.videoWidth||960,v.videoHeight||1280); }
+// Camera-shutter click, synthesized so the app stays asset-free and works offline.
+// Two short bursts of decaying filtered noise = mirror up, mirror down.
+var audioCtx=null;
+function playShutterClick(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    if(!audioCtx) audioCtx=new AC();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    var t0=audioCtx.currentTime, sr=audioCtx.sampleRate;
+    [[0,3800,0.9],[0.055,2600,0.5]].forEach(function(p){
+      var len=Math.floor(sr*0.03), buf=audioCtx.createBuffer(1,len,sr), d=buf.getChannelData(0);
+      for(var n=0;n<len;n++) d[n]=(Math.random()*2-1)*Math.pow(1-n/len,8); // sharp decay
+      var src=audioCtx.createBufferSource(); src.buffer=buf;
+      var bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=p[1]; bp.Q.value=1.2;
+      var g=audioCtx.createGain(); g.gain.value=p[2];
+      src.connect(bp); bp.connect(g); g.connect(audioCtx.destination);
+      src.start(t0+p[0]);
+    });
+  }catch(e){} // audio is cosmetic — never let it block a reading
+}
+function captureTest(){ var v=document.getElementById('cam'); playShutterClick(); finishTest(analyzeFrame(v,v.videoWidth||960,v.videoHeight||1280),v,v.videoWidth||960,v.videoHeight||1280); }
 function loadPhoto(ev){ var f=ev.target.files[0]; if(!f) return;
   var img=new Image(); img.onload=function(){ finishTest(analyzeFrame(img,img.width,img.height),img,img.width,img.height); }; img.src=URL.createObjectURL(f); }
 
@@ -195,10 +229,10 @@ function renderHistory(){
   days.forEach(function(day){
     var rows=byDay[day].sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
     var avg=rows.reduce(function(s,r){return s+r.conc;},0)/rows.length;
-    var disp=new Date(day+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+    var disp=new Date(day+'T00:00:00').toLocaleDateString(APP_LOCALE,{weekday:'short',year:'numeric',month:'short',day:'numeric'});
     h+='<tr><td class="daygrp" colspan="6">'+disp+'  —  '+rows.length+' test(s), mean Cl '+fmt(avg,2)+' mg/L</td></tr>';
     rows.forEach(function(r){
-      var t=new Date(r.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      var t=new Date(r.ts).toLocaleTimeString(APP_LOCALE, {hour:'2-digit',minute:'2-digit'});
       h+='<tr><td>'+t+'</td><td class="l">'+esc(r.pool||'—')+'</td><td><b>'+fmt(r.conc,2)+'</b></td><td class="l">'+esc(r.bandLabel||'')+'</td><td>'+(r.temp!=null?fmt(r.temp,1):'—')+'</td><td>'+(r.ph!=null?fmt(r.ph,2):'—')+'</td></tr>';
     });
   });
@@ -218,7 +252,7 @@ function exportHistory(){
   var lines=[head.map(csvCell).join(',')];
   log.forEach(function(r){
     var d=new Date(r.ts);
-    var row=[r.ts, d.toLocaleDateString(), d.toLocaleTimeString(), r.pool||'',
+    var row=[r.ts, d.toLocaleDateString(APP_LOCALE), d.toLocaleTimeString(APP_LOCALE), r.pool||'',
       fmt(r.conc,2), r.bandLabel||'', r.temp!=null?r.temp:'', r.ph!=null?r.ph:'',
       r.cya!=null?r.cya:'', r.hoclFraction!=null?r.hoclFraction:'', r.activeCl!=null?r.activeCl:'',
       r.lat!=null?r.lat:'', r.lon!=null?r.lon:'', r.manual?'manual card':'photo'];
@@ -245,7 +279,7 @@ function stampImage(srcEl,w,h,r){
   var cx=cv.getContext('2d'); cx.drawImage(srcEl,0,0,cw,ch);
   cx.fillStyle='rgba(4,40,48,.92)'; cx.fillRect(0,ch,cw,band);
   var now=new Date();
-  var ts=now.toLocaleString('en-GB',{weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  var ts=now.toLocaleString(APP_LOCALE,{weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   var off=-now.getTimezoneOffset()/60, tz='GMT'+(off>=0?'+':'')+off;
   var pad=Math.round(cw*0.03), y=ch+pad*1.4, lh=Math.round(band*0.11);
   cx.textBaseline='top';
@@ -262,13 +296,22 @@ function stampImage(srcEl,w,h,r){
   document.getElementById('recordBlock').style.display='block';
   document.getElementById('dlStamp').href=cv.toDataURL('image/png');
 }
+// Keep the stamp English-only: Nominatim returns local-script names (Odia, Hindi...) for
+// places with no name:en tag, so drop any comma-part that isn't Latin script.
+function englishOnlyAddress(s){
+  var nonLatin=/[^\u0020-\u024F\u2010-\u2027\u2030-\u205E]/; // ASCII + Latin-1/Ext-A/B + punctuation
+  var kept=String(s).split(',').map(function(p){return p.trim();})
+    .filter(function(p){ return p && !nonLatin.test(p); });
+  return kept.join(', ');
+}
 function drawMapSnippet(cx,cw,ch,band,pad,addrY,lat,lon){
   if(!lastGeo) return;
-  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lastGeo.lat+'&lon='+lastGeo.lon)
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&accept-language=en&lat='+lastGeo.lat+'&lon='+lastGeo.lon)
     .then(function(x){return x.json();}).then(function(j){
-      if(j&&j.display_name){ cx.fillStyle='rgba(4,40,48,.92)'; cx.fillRect(pad,addrY,cw-2*pad,band*0.12);
+      var addr=j&&j.display_name?englishOnlyAddress(j.display_name):'';
+      if(addr){ cx.fillStyle='rgba(4,40,48,.92)'; cx.fillRect(pad,addrY,cw-2*pad,band*0.12);
         cx.fillStyle='#bfe8ef'; cx.font=Math.round(band*0.075)+'px sans-serif';
-        cx.fillText(j.display_name.substring(0,64),pad,addrY);
+        cx.fillText(addr.substring(0,64),pad,addrY);
         document.getElementById('dlStamp').href=document.getElementById('stampCanvas').toDataURL('image/png'); } }).catch(function(){});
   var msz=Math.round(band*0.7), mx=cw-msz-pad, my=ch+(band-msz)/2;
   var img=new Image(); img.crossOrigin='anonymous';
@@ -288,7 +331,7 @@ function triggerCritical(){
 }
 function ackCritical(){
   document.getElementById('critical').classList.remove('show');
-  document.getElementById('clNote').textContent='ZERO chlorine acknowledged at '+new Date().toLocaleTimeString()+'. Re-chlorinate and re-test before reopening.';
+  document.getElementById('clNote').textContent='ZERO chlorine acknowledged at '+new Date().toLocaleTimeString(APP_LOCALE)+'. Re-chlorinate and re-test before reopening.';
   document.getElementById('shutter').focus();
 }
 

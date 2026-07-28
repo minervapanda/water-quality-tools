@@ -68,7 +68,6 @@
        border-radius:12px 12px 0 0;min-height:52px;transition:background .12s}
   .tab:hover{background:#c9d6e8}
   .tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
-  .tab.active .ml{color:#cfe0f2}
   .tab .ic{font-size:18px;display:block;line-height:1.1}
   .panel{display:none}.panel.active{display:block}
   /* ---- field test ---- */
@@ -98,7 +97,6 @@
   .critical .adv{font-size:15px;max-width:520px;line-height:1.5;margin:14px 0}
   .critical button{font-size:16px;font-weight:700;padding:14px 22px;border:none;border-radius:10px;
        background:#fff;color:#b00020;cursor:pointer;margin-top:8px;min-height:52px;width:min(90%,340px)}
-  .ml{font-size:11px;opacity:.85;display:block}
   .stamped{width:100%;border-radius:10px;margin-top:10px;border:1px solid var(--line)}
   .formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:#cfe0f2;
         background:rgba(0,0,0,.2);padding:8px 10px;border-radius:6px;margin-top:6px;white-space:pre-wrap}
@@ -295,15 +293,15 @@
         <span class="on">1 · Fill 10 mL</span><span>2 · Add DPD</span><span>3 · Photograph</span><span>4 · Result</span>
       </div>
       <div class="sop">
-        <b>Standard procedure</b> <span class="ml">मानक विधि · ମାନକ ପଦ୍ଧତି</span>
+        <b>Standard procedure</b>
         <ol>
-          <li>Collect exactly <b>10 mL</b> water in a clean clear vial. <span class="ml">10 mL पानी लें</span></li>
-          <li>Add the <b>DPD</b> reagent; cap and invert gently until an even <b>pink</b> develops. <span class="ml">DPD डालें, मिलाएँ</span></li>
-          <li>Hold the vial against a <b>pure white</b> card/paper. <span class="ml">सफ़ेद पृष्ठभूमि</span></li>
-          <li>Fill the outline with the vial and tap the shutter. <span class="ml">फ़ोटो लें</span></li>
+          <li>Collect exactly <b>10 mL</b> water in a clean clear vial.</li>
+          <li>Add the <b>DPD</b> reagent; cap and invert gently until an even <b>pink</b> develops.</li>
+          <li>Hold the vial against a <b>pure white</b> card/paper.</li>
+          <li>Fill the outline with the vial and tap the shutter.</li>
         </ol>
       </div>
-      <label for="wtpLoc" style="margin-top:4px">WTP / location <span style="font-weight:400;color:var(--grey)">— name of the plant or sampling point</span> <span class="ml">संयंत्र / स्थान · ପ୍ଲାଣ୍ଟ / ସ୍ଥାନ</span></label>
+      <label for="wtpLoc" style="margin-top:4px">WTP / location <span style="font-weight:400;color:var(--grey)">— name of the plant or sampling point</span></label>
       <input id="wtpLoc" type="text" placeholder="e.g. Palasuni WTP — outlet" autocomplete="off">
       <div class="cam-wrap" id="camWrap" style="margin-top:12px">
         <video id="cam" playsinline autoplay muted></video>
@@ -435,9 +433,8 @@
 <div class="critical" id="critical">
   <div class="warnicon">⚠️</div>
   <h2>ZERO CHLORINE — WATER UNSAFE</h2>
-  <div style="font-size:16px">शून्य क्लोरीन — पानी असुरक्षित<br>ଶୂନ୍ୟ କ୍ଲୋରିନ୍ — ଅସୁରକ୍ଷିତ</div>
   <div class="adv" id="criticalAdv"></div>
-  <button onclick="ackCritical()">✓ I acknowledge — मैंने देखा</button>
+  <button onclick="ackCritical()">✓ I acknowledge</button>
 </div>
 
 <script>
@@ -445,7 +442,21 @@
 var L_UK=4.54609, L_US=3.78541, BLEACH=0.33, PAC_DENS=1.18, FIELD_MIN=10, FIELD_MAX=550;
 var COAG_FORMULA={"Alum Gr.IV":[11.51,0.552],"PAC":[9.474,0.536],"Alum Gr.II":[18.86,0.537]};
 function flowToMld(v,u){return v*(u==="MLD"?1:(u==="UK_MGD"?L_UK:L_US));}
-function fmt(x,d){if(!isFinite(x)||x===null)return "—";return x.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+// The app is used in both the US and India, so dates and numbers follow the
+// device's REGION (7/24/2026 vs 24/07/2026, 1,240,000 vs 12,40,000) — but the
+// language is pinned to English and digits to Latin. Without the pin, a phone set
+// to Marathi/Bengali renders doses in Devanagari/Bengali digits, which no report should contain.
+var APP_LOCALE=(function(){
+  try{
+    var o=new Intl.DateTimeFormat().resolvedOptions();
+    var region=(String(o.locale).match(/-([A-Za-z]{2})(?:-|$)/)||[])[1];
+    if(region) region=region.toUpperCase();
+    if(!region){ var tz=o.timeZone||'';                       // locale carried no region
+      region=/Kolkata|Calcutta/i.test(tz)?'IN':(/America\//.test(tz)?'US':''); }
+    return 'en'+(region?'-'+region:'')+'-u-nu-latn';
+  }catch(e){ return 'en-u-nu-latn'; }
+})();
+function fmt(x,d){if(!isFinite(x)||x===null)return "—";return x.toLocaleString(APP_LOCALE,{minimumFractionDigits:d,maximumFractionDigits:d});}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function doseKgPerMG(ntu,chem){var c=COAG_FORMULA[chem];return ntu>0?c[0]*Math.pow(ntu,c[1]):0;}   // kg per million UK gallons
 function doseMgL(ntu,chem){return doseKgPerMG(ntu,chem)/L_UK;}                                       // mg/L
@@ -627,7 +638,7 @@ function exportDosage(){
   var unitTxt={MLD:"MLD",UK_MGD:"million UK gal/day",US_MGD:"million US gal/day"}[unit];
   var wtp=(document.getElementById('wtpLoc')?document.getElementById('wtpLoc').value:'').trim();
   var L=['AQUATREAT — DOSAGE SUMMARY',
-    new Date().toLocaleString(),
+    new Date().toLocaleString(APP_LOCALE),
     '--------------------------------'];
   if(wtp) L.push('WTP / location      : '+wtp);
   L=L.concat([
@@ -646,12 +657,7 @@ function exportDosage(){
     var clKg=cld*mld, prodKg=clKg/frac;
     L.push('--------------------------------','Disinfectant        : '+agent,
       'Chlorine dose       : '+fmt(cld,2)+' mg/L',
-      'PRODUCT TO ADD      : '+fmt(prodKg,1)+' kg/day');
-    if((dis==='bleaching_powder'||dis==='custom') && prodKg>0){
-      var S=parseFloat(document.getElementById('solnS').value)||5;
-      var solLday=prodKg/(S/100);
-      L.push('Solution ('+fmt(S,1)+'% w/v)  : '+fmt(solLday,0)+' L/day',
-        'Drip rate           : '+fmt(solLday*1000/1440,0)+' mL/min'); } }
+      'PRODUCT TO ADD      : '+fmt(prodKg,1)+' kg/day'); }
   var txt=L.join('\n');
   pre.style.display='block'; pre.textContent=txt;
   dl.style.display='inline-block'; dl.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
@@ -820,9 +826,30 @@ function checkROI(){
   roi.className='roi '+(ok?'ok':'bad'); lab.textContent=msg; sh.disabled=!ok;
 }
 
+// Camera-shutter click, synthesized so the app stays asset-free and works offline.
+// Two short bursts of decaying filtered noise = mirror up, mirror down.
+var audioCtx=null;
+function playShutterClick(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    if(!audioCtx) audioCtx=new AC();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    var t0=audioCtx.currentTime, sr=audioCtx.sampleRate;
+    [[0,3800,0.9],[0.055,2600,0.5]].forEach(function(p){
+      var len=Math.floor(sr*0.03), buf=audioCtx.createBuffer(1,len,sr), d=buf.getChannelData(0);
+      for(var n=0;n<len;n++) d[n]=(Math.random()*2-1)*Math.pow(1-n/len,8); // sharp decay
+      var src=audioCtx.createBufferSource(); src.buffer=buf;
+      var bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=p[1]; bp.Q.value=1.2;
+      var g=audioCtx.createGain(); g.gain.value=p[2];
+      src.connect(bp); bp.connect(g); g.connect(audioCtx.destination);
+      src.start(t0+p[0]);
+    });
+  }catch(e){} // audio is cosmetic — never let it block a reading
+}
 function captureTest(){
   var v=document.getElementById('cam');
   var w=v.videoWidth||960, h=v.videoHeight||1280;
+  playShutterClick();
   finishTest(analyzeFrame(v,w,h),v,w,h);
 }
 function loadPhoto(ev){
@@ -897,7 +924,7 @@ function stampImage(srcEl,w,h,r){
   cx.drawImage(srcEl,0,0,cw,ch);
   cx.fillStyle='rgba(15,25,38,.92)'; cx.fillRect(0,ch,cw,band);
   var now=new Date();
-  var ts=now.toLocaleString('en-GB',{weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  var ts=now.toLocaleString(APP_LOCALE,{weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   var off=-now.getTimezoneOffset()/60; var tz='GMT'+(off>=0?'+':'')+off;
   var pad=Math.round(cw*0.03), y=ch+pad*1.4, lh=Math.round(band*0.11);
   cx.textBaseline='top';
@@ -917,14 +944,23 @@ function stampImage(srcEl,w,h,r){
   document.getElementById('recordBlock').style.display='block';
   document.getElementById('dlStamp').href=cv.toDataURL('image/png');
 }
+// Keep the stamp English-only: Nominatim returns local-script names (Odia, Hindi…) for
+// places with no name:en tag, so drop any comma-part that isn't Latin script.
+function englishOnlyAddress(s){
+  var nonLatin=/[^\u0020-\u024F\u2010-\u2027\u2030-\u205E]/; // ASCII + Latin-1/Ext-A/B + punctuation
+  var kept=String(s).split(',').map(function(p){return p.trim();})
+    .filter(function(p){ return p && !nonLatin.test(p); });
+  return kept.join(', ');
+}
 function drawMapSnippet(cx,cw,ch,band,pad,addrY,lat,lon){
   if(!lastGeo) return;
   // reverse geocode (OpenStreetMap Nominatim) — online only, degrades silently
-  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lastGeo.lat+'&lon='+lastGeo.lon)
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&accept-language=en&lat='+lastGeo.lat+'&lon='+lastGeo.lon)
     .then(function(x){return x.json();}).then(function(j){
-      if(j&&j.display_name){ cx.fillStyle='rgba(15,25,38,.92)'; cx.fillRect(pad,addrY,cw-2*pad,band*0.12);
+      var addr=j&&j.display_name?englishOnlyAddress(j.display_name):'';
+      if(addr){ cx.fillStyle='rgba(15,25,38,.92)'; cx.fillRect(pad,addrY,cw-2*pad,band*0.12);
         cx.fillStyle='#cfe0f2'; cx.font=Math.round(band*0.075)+'px sans-serif';
-        cx.fillText(j.display_name.substring(0,64), pad, addrY);
+        cx.fillText(addr.substring(0,64), pad, addrY);
         document.getElementById('dlStamp').href=document.getElementById('stampCanvas').toDataURL('image/png'); }
     }).catch(function(){});
   var msz=Math.round(band*0.7), mx=cw-msz-pad, my=ch+(band-msz)/2;
@@ -945,7 +981,7 @@ function triggerCritical(){
 }
 function ackCritical(){
   document.getElementById('critical').classList.remove('show');
-  document.getElementById('clNote').textContent='ZERO chlorine acknowledged at '+new Date().toLocaleTimeString()+'. Corrective dosing required — re-test after action.';
+  document.getElementById('clNote').textContent='ZERO chlorine acknowledged at '+new Date().toLocaleTimeString(APP_LOCALE)+'. Corrective dosing required — re-test after action.';
 }
 
 // ---- batch report (calls the Flask API when served; needs the running app) ----
