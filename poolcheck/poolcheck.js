@@ -52,7 +52,10 @@ function analyzeFrame(srcEl,w,h){
     else if(Math.min(R,G,B)>170&&(Math.max(R,G,B)-Math.min(R,G,B))<18){ gWhite.push(G); nWhite++; }
   }
   if(nPink<Math.max(50,0.02*n)) return {detected:false,overFrac:over/n,gWhite:_median(gWhite)||0};
-  return {detected:true,gPink:_median(gPink),gWhite:(nWhite>=50?_median(gWhite):255),overFrac:over/n};
+  // No white surround found -> gWhite=0 (never a fabricated perfect white): the
+  // reading is only computed against a measured reference, and checkROI's
+  // gWhite<150 gate actually fires in exactly the no-white-card case.
+  return {detected:true,gPink:_median(gPink),gWhite:(nWhite>=50?_median(gWhite):0),overFrac:over/n};
 }
 function checkROI(){
   var v=document.getElementById('cam'); if(!v.videoWidth) return;
@@ -110,12 +113,27 @@ function captureTest(){ var v=document.getElementById('cam'); playShutterClick()
 function loadPhoto(ev){ var f=ev.target.files[0]; if(!f) return;
   var img=new Image(); img.onload=function(){ finishTest(analyzeFrame(img,img.width,img.height),img,img.width,img.height); }; img.src=URL.createObjectURL(f); }
 
+// Clear the result area AND the previous reading's save row — a rejected shot must
+// not leave a stale reading one tap away from the log.
+function rejectTest(noteHtml){
+  lastReading=null;
+  document.getElementById('clResult').innerHTML='— <small style="font-size:18px;font-weight:400">mg/L</small>';
+  document.getElementById('clBand').style.display='none'; document.getElementById('gaugePin').style.display='none';
+  document.getElementById('clSteps').innerHTML=''; document.getElementById('recordBlock').style.display='none';
+  document.getElementById('readingSummary').style.display='none'; document.getElementById('saveBtn').style.display='none';
+  document.getElementById('clNote').innerHTML=noteHtml;
+}
 function finishTest(s,srcEl,w,h){
   if(!s.detected){
-    document.getElementById('clResult').innerHTML='— <small style="font-size:18px;font-weight:400">mg/L</small>';
-    document.getElementById('clBand').style.display='none'; document.getElementById('gaugePin').style.display='none';
-    document.getElementById('clSteps').innerHTML=''; document.getElementById('recordBlock').style.display='none';
-    document.getElementById('clNote').innerHTML='<b>No vial detected.</b> Align the DPD vial against a white background and capture again. If the sample is truly colourless, confirm zero on the comparator card.';
+    rejectTest('<b>No vial detected.</b> Align the DPD vial against a white background and capture again. If the sample is truly colourless, confirm zero on the comparator card.');
+    return;
+  }
+  // Photo uploads never pass through checkROI, so re-apply the quality gates here:
+  // a reading against glare or without a measured white reference is unreliable.
+  if(s.overFrac>0.15 || s.gWhite<150){
+    rejectTest(s.overFrac>0.15 ?
+      '<b>Too much glare.</b> Retake away from direct sun and reflections.' :
+      '<b>No white reference.</b> Place the vial on plain white paper in even light and retake — a reading without a white reference is unreliable.');
     return;
   }
   var r=chlorineFromGreen(s.gPink,s.gWhite,dilutionFactor());

@@ -811,7 +811,10 @@ function analyzeFrame(srcEl,w,h){
   var pinkFrac=nPink/n;
   if(nPink < Math.max(50, 0.02*n))
     return {detected:false, pinkFrac:pinkFrac, overFrac:over/n, gWhite:_median(gWhite)||0};
-  return {detected:true, gPink:_median(gPink), gWhite:(nWhite>=50?_median(gWhite):255),
+  // No white surround found -> gWhite=0 (never a fabricated perfect white): the
+  // reading is only computed against a measured reference, and checkROI's
+  // gWhite<150 gate actually fires in exactly the no-white-card case.
+  return {detected:true, gPink:_median(gPink), gWhite:(nWhite>=50?_median(gWhite):0),
           pinkFrac:pinkFrac, overFrac:over/n};
 }
 
@@ -878,6 +881,19 @@ function finishTest(s,srcEl,w,h){
     document.getElementById('clNote').innerHTML='<span class="band low">No vial detected</span><br>'+
       'No pink liquid was found in the outline. Re-align the DPD vial against a white background and capture again. '+
       'If the sample truly shows no colour, confirm zero chlorine on the comparator card before acting.';
+    return;
+  }
+  // Photo uploads never pass through checkROI, so re-apply the quality gates here:
+  // a reading against glare or without a measured white reference is unreliable.
+  if(s.overFrac>0.15 || s.gWhite<150){
+    document.getElementById('clResult').innerHTML='— <small style="font-size:16px;font-weight:400">mg/L</small>';
+    document.getElementById('clBand').style.display='none';
+    document.getElementById('clSteps').innerHTML='';
+    document.getElementById('recordBlock').style.display='none';
+    document.getElementById('clNote').innerHTML = s.overFrac>0.15 ?
+      '<span class="band low">Too much glare</span><br>Retake away from direct sun and reflections.' :
+      '<span class="band low">No white reference</span><br>Place the vial on plain white paper in even light and retake — '+
+      'a reading without a white reference is unreliable.';
     return;
   }
   var r=chlorineFromGreen(s.gPink,s.gWhite);
