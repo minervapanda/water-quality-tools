@@ -826,14 +826,20 @@ function analyzeFrame(srcEl,w,h){
   var cx=cv.getContext('2d'); cx.drawImage(srcEl,0,0,w,h);
   var x0=Math.round(w*0.30), bw=Math.round(w*0.40);   // central band = guided outline
   var d=cx.getImageData(x0,0,bw,h).data;
-  var pV=[[],[],[]], wV=[[],[],[]], nPink=0, nWhite=0, over=0, n=0;
+  var pV=[[],[],[]], wV=[[],[],[]], nPink=0, nWhite=0, nScene=0, over=0, n=0;
   for(var i=0;i<d.length;i+=4){
     var R=d[i],G=d[i+1],B=d[i+2]; n++;
     if(R>250&&G>250&&B>250) over++;
     if(R>G+8 && B>G+2 && (R-G)>10){ pV[0].push(R); pV[1].push(G); pV[2].push(B); nPink++; }   // DPD pink: green suppressed
     else if(Math.min(R,G,B)>170 && (Math.max(R,G,B)-Math.min(R,G,B))<18){ wV[0].push(R); wV[1].push(G); wV[2].push(B); nWhite++; }
+    else if(!(Math.min(R,G,B)>150 && (Math.max(R,G,B)-Math.min(R,G,B))<30)) nScene++;   // neither pink nor white card
   }
   var pinkFrac=nPink/n;
+  // A face, a room or a document has a sliver of "pink" and most of the frame in other
+  // colours; a vial on white paper has neither. Refuse such a frame rather than read it.
+  // Same rule as PoolCheck/Aquasafe: >50% of the band neither pink nor card, or >20% and pink <15%.
+  if(nPink>=Math.max(50,0.02*n) && (nScene>0.50*n || (nScene>0.20*n && pinkFrac<0.15)))
+    return {detected:false, notVial:true, pinkFrac:pinkFrac, sceneFrac:nScene/n, overFrac:over/n, gWhite:0, white:[0,0,0]};
   // No white surround found -> white=0 (never a fabricated perfect white): the
   // reading is only computed against a measured reference, and checkROI's
   // gWhite<150 gate actually fires in exactly the no-white-card case.
@@ -905,7 +911,9 @@ function finishTest(s,srcEl,w,h){
     var b=document.getElementById('clBand'); b.style.display='none';
     document.getElementById('clSteps').innerHTML='';
     document.getElementById('recordBlock').style.display='none';
-    document.getElementById('clNote').innerHTML='<span class="band low">No vial detected</span><br>'+
+    document.getElementById('clNote').innerHTML=s.notVial
+      ? '<span class="band low">Not a vial photo</span><br>This does not look like a vial on white paper (pink liquid is '+Math.round(100*s.pinkFrac)+'% of the frame, other content '+Math.round(100*s.sceneFrac)+'%). Photograph the vial filling the outline against plain white paper and retake.'
+      : '<span class="band low">No vial detected</span><br>'+
       'No pink liquid was found in the outline. Re-align the DPD vial against a white background and capture again. '+
       'If the sample truly shows no colour, confirm zero chlorine on the comparator card before acting.';
     return;

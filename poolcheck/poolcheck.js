@@ -11,6 +11,9 @@
 var POOL_MIN=1.0, POOL_IDEAL_HIGH=3.0, POOL_MAX=5.0;
 var CHART_MG=[0,0.2,0.5,1,2,3,4,5], CHART_TOP=5.0;
 var OFF_CHART_FIT=0.12;      // weighted distance from the chart line above which the colour is flagged
+// Vial-on-white gate (same rule in every app of the family): refuse when >50% of the band is
+// neither liquid nor white card, or when >20% is and the liquid covers <15%.
+var SCENE_MAX_FRAC=0.50, SCENE_WARN_FRAC=0.20, SAMPLE_MIN_FRAC=0.15;
 var LEGACY_DPD_K=3.778;      // pre-2026-09-11 green-channel slope — kept in the record for comparison only
 var CHARTS={
   dpd:{id:'dpd', name:'DPD', species:'free', label:'Free chlorine', shortLabel:'Free Cl', colour:'pink', channel:1,
@@ -152,13 +155,19 @@ function analyzePixels(d){
   if(!whiteOK) return {detected:false, whiteOK:false, overFrac:over/n, white:[0,0,0], nWhite:nW};
   // pass 2 — colour tests on WHITE-BALANCED values (the card is neutral by construction)
   var k=[255/Math.max(1,white[0]),255/Math.max(1,white[1]),255/Math.max(1,white[2])];
-  var sV=[[],[],[]], nS=0, nOther=0;
+  var sV=[[],[],[]], nS=0, nOther=0, nScene=0;
   for(i=0;i<d.length;i+=4){
     var nr=d[i]*k[0], ng=d[i+1]*k[1], nb=d[i+2]*k[2];
     if(ANALYTE[ch.id](nr,ng,nb)){ sV[0].push(d[i]); sV[1].push(d[i+1]); sV[2].push(d[i+2]); nS++; }
     else if(ANALYTE[other.id](nr,ng,nb)) nOther++;
+    else if(!(Math.min(nr,ng,nb)>150 && Math.max(nr,ng,nb)-Math.min(nr,ng,nb)<30)) nScene++;   // neither reagent nor white card
   }
   var minPix=Math.max(50,0.02*n);
+  // A face, a room or a document has a sliver of "pink" and most of the frame in other
+  // colours; a vial on white paper has neither. Refuse such a frame rather than read it.
+  if(nS>=minPix && (nScene>SCENE_MAX_FRAC*n || (nScene>SCENE_WARN_FRAC*n && nS<SAMPLE_MIN_FRAC*n)))
+    return {detected:false, whiteOK:true, overFrac:over/n, white:white, nWhite:nW, notVial:true,
+            sampleFrac:nS/n, sceneFrac:nScene/n};
   if(nS<minPix) return {detected:false, whiteOK:true, overFrac:over/n, white:white, nWhite:nW,
                         wrongReagent:nOther>=minPix, looksLike:other.id};
   return {detected:true, whiteOK:true, overFrac:over/n, white:white, nWhite:nW,
@@ -204,7 +213,7 @@ function checkROI(){
   var ok=true,msg=ch.colour.charAt(0).toUpperCase()+ch.colour.slice(1)+' detected — tap the shutter';
   if(s.overFrac>0.15){ ok=false; msg='Too bright / glare — move to shade'; }
   else if(!s.whiteOK){ ok=false; msg='Use a white background behind the vial'; }
-  else if(!s.detected){ ok=false; msg=s.wrongReagent?('Looks like a '+CHARTS[s.looksLike].name+' vial — check the tab'):('Align the '+ch.colour+' vial in the outline'); }
+  else if(!s.detected){ ok=false; msg=s.notVial?'Not a vial on white paper — fill the outline':(s.wrongReagent?('Looks like a '+CHARTS[s.looksLike].name+' vial — check the tab'):('Align the '+ch.colour+' vial in the outline')); }
   roi.className='roi '+(ok?'ok':'bad'); lab.textContent=msg; sh.disabled=!ok;
 }
 function classify(conc,reagent){
@@ -272,6 +281,7 @@ function finishTest(s,srcEl,w,h){
   if(s.overFrac>0.15){ rejectTest('<b>Too much glare.</b> Retake away from direct sun and reflections.'); return; }
   if(!s.whiteOK){ rejectTest('<b>No white reference.</b> Place the vial on plain white paper in even light and retake — a reading without a white reference is unreliable.'); return; }
   if(!s.detected){
+    if(s.notVial){ rejectTest('<b>This does not look like a vial on white paper</b> (coloured liquid is '+Math.round(100*s.sampleFrac)+'% of the frame, other content '+Math.round(100*s.sceneFrac)+'%). Photograph the vial filling the outline against plain white paper and retake.'); return; }
     if(s.wrongReagent){ var o=CHARTS[s.looksLike];
       rejectTest('<b>This looks like a '+o.colour+' '+o.name+' vial</b>, but the '+ch.name+' tab is selected. Confirm which reagent you added and select that tab — the two are read on different scales.'); }
     else rejectTest('<b>No '+ch.colour+' vial detected.</b> Align the '+ch.name+' vial against a white background and capture again. If the sample is truly colourless, confirm zero on the comparator card.');
