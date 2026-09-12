@@ -99,6 +99,13 @@ function setReagent(id){
   if(tD){ tD.className=(id==='dpd'?'on':''); tD.setAttribute('aria-selected',id==='dpd'); }
   if(tO){ tO.className=(id==='oto'?'on':''); tO.setAttribute('aria-selected',id==='oto'); }
   var seg=document.getElementById('reagentTabs'); if(seg) seg.className='seg '+(id==='oto'?'yellowish':'pinkish');
+  ['testPanel','resultPanel'].forEach(function(pid){ var el=document.getElementById(pid); if(el) el.className='card '+id; });
+  var tt=document.getElementById('testTitle'); if(tt) tt.textContent='2 · '+ch.name+' test — '+(id==='oto'?'total chlorine (yellow)':'free chlorine (pink)');
+  var rn=document.getElementById('reagentNote'); if(rn) rn.innerHTML=(id==='oto'
+    ?'<b>OTO</b> (ortho-tolidine, yellow) measures <b>total</b> chlorine — read against the OTO chart. Switch to DPD to test free chlorine.'
+    :'<b>DPD</b> (pink) measures <b>free</b> chlorine — the pool standard (WHO 1–3 mg/L) is on this test. Switch to OTO only if you added ortho-tolidine.');
+  var oc=document.getElementById('otoCaution'); if(oc) oc.style.display=(id==='oto'?'block':'none');
+  try{ if(history.replaceState) history.replaceState(null,'',location.pathname+location.search+(id==='oto'?'#oto':'')); }catch(e){}
   var sop=document.getElementById('sopList'); if(sop) sop.innerHTML=ch.sop.map(function(x){return '<li>'+x+'</li>';}).join('');
   var chips=document.getElementById('stepChips'); if(chips) chips.innerHTML=ch.chips.map(function(x,i){return '<span'+(i===0?' class="on"':'')+'>'+x+'</span>';}).join('');
   var rt=document.getElementById('resultTitle'); if(rt) rt.textContent=ch.label;
@@ -504,5 +511,5 @@ function ackCritical(){
 }
 
 // ---- init ----
-requestGeo(); setReagent('dpd'); startCam(); renderHistory();
+requestGeo(); setReagent(location.hash==='#oto'?'oto':'dpd'); startCam(); renderHistory();   // #oto deep-links to the OTO panel
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(function(){}); }

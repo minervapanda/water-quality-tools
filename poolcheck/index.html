@@ -49,6 +49,9 @@
   .band.ok{background:#d6f5d6;color:#15691b}.band.low{background:#ffe6c2;color:#8a4b00}
   .band.high{background:#ffe0b0;color:#8a3b00}.band.zero{background:#ffd2d2;color:#a10000}.band.vhigh{background:#ffc9c9;color:#8a0000}
   .band.total{background:#e3ecf7;color:#1f3f6b}
+  .card.dpd{border-left:6px solid #d63384}.card.oto{border-left:6px solid #e0a800}
+  .card.dpd h2{color:#8a1c55}.card.oto h2{color:#7a5800}
+  .caution{background:#fff3cd;border:1px solid #e0a800;color:#5c4300;border-radius:10px;padding:10px 12px;font-size:13px;margin:0 0 12px}
   .seg{display:flex;gap:8px;margin:0 0 12px}
   .seg button{flex:1;padding:10px 8px;border:2px solid var(--line);border-radius:10px;background:#fff;font-weight:700;font-size:14px;cursor:pointer;min-height:52px;color:var(--grey)}
   .seg button small{display:block;font-weight:500;font-size:11px}
@@ -91,17 +94,23 @@
 <body>
 <header>
   <h1>🏊 PoolCheck</h1>
-  <p>Swimming-pool free-chlorine test — photograph the DPD sample, get mg/L</p>
+  <p>Swimming-pool chlorine test — pick DPD (free chlorine) or OTO (total chlorine), photograph the vial, get mg/L</p>
 </header>
 <div class="wrap">
   <div class="card">
-    <h2>1 · Test the pool water</h2>
+    <h2>1 · Which test are you running?</h2>
     <!-- The operator selects the reagent; that selection is the ONLY authority over which
          chart is used. The photo's colour is only ever used to refuse a clear contradiction. -->
-    <div class="seg pinkish" id="reagentTabs" role="tablist" aria-label="Reagent">
-      <button type="button" id="rgDpd" class="on" role="tab" aria-selected="true" onclick="setReagent('dpd')">DPD <small>pink · free chlorine</small></button>
-      <button type="button" id="rgOto" role="tab" aria-selected="false" onclick="setReagent('oto')">OTO <small>yellow · total chlorine</small></button>
+    <div class="seg pinkish" id="reagentTabs" role="tablist" aria-label="Chlorine test type">
+      <button type="button" id="rgDpd" class="on" role="tab" aria-selected="true" aria-controls="testPanel" onclick="setReagent('dpd')">DPD <small>pink · free chlorine</small></button>
+      <button type="button" id="rgOto" role="tab" aria-selected="false" aria-controls="testPanel" onclick="setReagent('oto')">OTO <small>yellow · total chlorine</small></button>
     </div>
+    <div class="note" id="reagentNote"></div>
+  </div>
+
+  <div class="card dpd" id="testPanel" role="tabpanel">
+    <h2 id="testTitle">2 · DPD test — free chlorine</h2>
+    <div class="caution" id="otoCaution" style="display:none"><b>OTO reads total chlorine</b> (free + combined). It can prove chlorine is absent or low, but it cannot confirm the 1–3 mg/L <b>free</b>-chlorine range. Use the DPD test for that.</div>
     <div class="stepchip" id="stepChips"></div>
     <div class="sop"><b>How to test</b>
       <ol id="sopList"></ol>
@@ -155,7 +164,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card dpd" id="resultPanel">
     <h2 id="resultTitle">Free chlorine</h2>
     <div aria-live="polite" aria-atomic="true">
       <div class="bigresult" id="clResult">— <small style="font-size:18px;font-weight:400">mg/L</small></div>
