@@ -817,10 +817,11 @@ function stopCam(){ if(camStream){camStream.getTracks().forEach(function(t){t.st
 // median helper
 function _median(arr){ if(!arr.length) return 0; arr.sort(function(a,b){return a-b;}); var n=arr.length; return n%2?arr[n>>1]:(arr[n/2-1]+arr[n/2])/2; }
 
-// Locate the pink DPD liquid in the central band and measure its green channel.
-// Returns {detected, gPink, gWhite, pinkFrac, overFrac}. NEVER assumes a rectangle
-// holds liquid — if too little pink is found, detected=false (so a mis-framed or
-// empty frame is not reported as 0.0 mg/L).
+// Locate the pink DPD liquid in the central band against the white card around it.
+// Returns {detected, pink, white, gPink, gWhite, pinkFrac, overFrac, colourless}.
+// A frame with no pink that IS plain white paper is the chart's own 0.0 swatch
+// ("colourless, no tint") and reads 0.0 with colourless=true (2026-09-12); a frame
+// with no pink that is NOT plain paper (a grey object, a room) is refused.
 function analyzeFrame(srcEl,w,h){
   var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
   var cx=cv.getContext('2d'); cx.drawImage(srcEl,0,0,w,h);
@@ -829,7 +830,7 @@ function analyzeFrame(srcEl,w,h){
   var pV=[[],[],[]], wV=[[],[],[]], nPink=0, nWhite=0, nScene=0, over=0, n=0;
   for(var i=0;i<d.length;i+=4){
     var R=d[i],G=d[i+1],B=d[i+2]; n++;
-    if(R>250&&G>250&&B>250) over++;
+    if(R>=254&&G>=254&&B>=254) over++;   // blown out = clipping level; a colourless vial at 253 is a sample, not glare
     if(R>G+8 && B>G+2 && (R-G)>10){ pV[0].push(R); pV[1].push(G); pV[2].push(B); nPink++; }   // DPD pink: green suppressed
     else if(Math.min(R,G,B)>170 && (Math.max(R,G,B)-Math.min(R,G,B))<18){ wV[0].push(R); wV[1].push(G); wV[2].push(B); nWhite++; }
     else if(!(Math.min(R,G,B)>150 && (Math.max(R,G,B)-Math.min(R,G,B))<30)) nScene++;   // neither pink nor white card
@@ -844,8 +845,13 @@ function analyzeFrame(srcEl,w,h){
   // reading is only computed against a measured reference, and checkROI's
   // gWhite<150 gate actually fires in exactly the no-white-card case.
   var white=(nWhite>=50)?[_median(wV[0]),_median(wV[1]),_median(wV[2])]:[0,0,0];
-  if(nPink < Math.max(50, 0.02*n))
-    return {detected:false, pinkFrac:pinkFrac, overFrac:over/n, gWhite:white[1], white:white};
+  if(nPink < Math.max(50, 0.02*n)){
+    if(nWhite<50 || nScene>0.20*n)
+      return {detected:false, pinkFrac:pinkFrac, sceneFrac:nScene/n, overFrac:over/n, gWhite:white[1], white:white};
+    // Colourless on plain white paper: the sample IS the card, transmittance 1.0, chart 0.0.
+    return {detected:true, colourless:true, pink:white.slice(), white:white,
+            gPink:white[1], gWhite:white[1], pinkFrac:0, overFrac:over/n};
+  }
   return {detected:true, pink:[_median(pV[0]),_median(pV[1]),_median(pV[2])], white:white,
           gPink:_median(pV[1]), gWhite:white[1], pinkFrac:pinkFrac, overFrac:over/n};
 }
@@ -858,6 +864,7 @@ function checkROI(){
   if(s.overFrac>0.15){ ok=false; msg='Too bright / glare — move to shade'; }
   else if(!s.detected){ ok=false; msg='Align the pink vial inside the outline'; }
   else if(s.gWhite<150){ ok=false; msg='Use a white background behind the vial'; }
+  else if(s.colourless){ msg='No colour in the vial — reads 0.0; tap the shutter'; }
   roi.className='roi '+(ok?'ok':'bad'); lab.textContent=msg; sh.disabled=!ok;
 }
 
@@ -904,8 +911,9 @@ function chlorineFromChart(pink,white){
 }
 
 function finishTest(s,srcEl,w,h){
-  // s = analyzeFrame() result. If no pink liquid was located, DO NOT report 0.0
-  // (that would falsely trigger the zero-chlorine alert). Ask for a re-shot instead.
+  // s = analyzeFrame() result. A colourless vial on plain white paper reads 0.0 (the
+  // chart's own first swatch) and raises the zero-chlorine alert; a frame with no pink
+  // that is not plain paper is refused and a re-shot is asked for.
   if(!s.detected){
     document.getElementById('clResult').innerHTML='— <small style="font-size:16px;font-weight:400">mg/L</small>';
     var b=document.getElementById('clBand'); b.style.display='none';
@@ -914,8 +922,7 @@ function finishTest(s,srcEl,w,h){
     document.getElementById('clNote').innerHTML=s.notVial
       ? '<span class="band low">Not a vial photo</span><br>This does not look like a vial on white paper (pink liquid is '+Math.round(100*s.pinkFrac)+'% of the frame, other content '+Math.round(100*s.sceneFrac)+'%). Photograph the vial filling the outline against plain white paper and retake.'
       : '<span class="band low">No vial detected</span><br>'+
-      'No pink liquid was found in the outline. Re-align the DPD vial against a white background and capture again. '+
-      'If the sample truly shows no colour, confirm zero chlorine on the comparator card before acting.';
+      'No pink liquid was found in the outline and the frame is not plain white paper. Re-align the DPD vial on plain white paper and capture again.';
     return;
   }
   // Photo uploads never pass through checkROI, so re-apply the quality gates here:
@@ -932,7 +939,7 @@ function finishTest(s,srcEl,w,h){
     return;
   }
   var r=chlorineFromChart(s.pink,s.white);
-  renderResult(r, {pink:s.pink,white:s.white});
+  renderResult(r, {pink:s.pink,white:s.white,colourless:!!s.colourless});
   stampImage(srcEl,w,h,r);
 }
 function manualResult(){
@@ -949,6 +956,7 @@ function renderResult(r,px){
   bandEl.textContent={zero:'ZERO — unsafe',low:'Below BIS min (0.2)',ok:'Within BIS 0.2–1.0',high:'Above 1.0 mg/L'}[r.band];
   var st=[];
   if(!r.manual && px){
+    if(px.colourless) st.push('<b>No pink tint in the outline</b> — read as the 0.0 (colourless) swatch of the DPD colour chart. Make sure the vial was inside the outline with the reagent added, and confirm zero on the comparator card before acting.');
     st.push('<b>Colour</b> read from photo:<br><span class="u">vial RGB '+px.pink.map(function(v){return fmt(v,0);}).join('/')+' · white card RGB '+px.white.map(function(v){return fmt(v,0);}).join('/')+'</span>');
     st.push('<b>Transmittance</b> (vial ÷ card) R/G/B:<br><span class="u">'+r.t.map(function(v){return fmt(v,3);}).join(' / ')+'</span>');
     st.push('<b>Nearest point on the DPD colour chart</b>: between the '+CHART_MG[r.seg].toFixed(1)+' and '+CHART_MG[r.seg+1].toFixed(1)+' swatches, '+Math.round(r.frac*100)+'% of the way = <span class="u"><b>'+fmt(r.conc,2)+' mg/L</b></span>');

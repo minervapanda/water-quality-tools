@@ -2,7 +2,7 @@
 // Navigations are network-first (online users always get fresh HTML on deploy);
 // other same-origin GETs are cache-first. The map/address calls (OpenStreetMap)
 // are intentionally NOT cached; they only work online and degrade silently.
-var CACHE='poolcheck-v5'; // bump on every deploy
+var CACHE='poolcheck-v6'; // bump on every deploy
 var SHELL=['index.html','poolcheck.js','manifest.webmanifest','icon-192.png','icon-512.png'];
 self.addEventListener('install',function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(SHELL);}).then(function(){return self.skipWaiting();}));
