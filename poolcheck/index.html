@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="PoolCheck">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>PoolCheck — Swimming Pool Chlorine Test</title>
+<title>PoolCheck — Swimming Pool Chlorine Test (DPD / OTO)</title>
 <style>
   :root{--teal:#0288a7;--deep:#025e73;--aqua:#26c6da;--red:#c0392b;--amber:#e6842e;
         --green:#2e7d32;--grey:#557;--lgrey:#eef7f9;--line:#cfe6ec}
@@ -48,6 +48,16 @@
   .band{display:inline-block;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:700}
   .band.ok{background:#d6f5d6;color:#15691b}.band.low{background:#ffe6c2;color:#8a4b00}
   .band.high{background:#ffe0b0;color:#8a3b00}.band.zero{background:#ffd2d2;color:#a10000}.band.vhigh{background:#ffc9c9;color:#8a0000}
+  .band.total{background:#e3ecf7;color:#1f3f6b}
+  .seg{display:flex;gap:8px;margin:0 0 12px}
+  .seg button{flex:1;padding:10px 8px;border:2px solid var(--line);border-radius:10px;background:#fff;font-weight:700;font-size:14px;cursor:pointer;min-height:52px;color:var(--grey)}
+  .seg button small{display:block;font-weight:500;font-size:11px}
+  .seg.pinkish button.on{border-color:#d63384;background:#fde7f1;color:#8a1c55}
+  .seg.yellowish button.on{border-color:#c99000;background:#fff8e0;color:#7a5800}
+  .chart{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:8px}
+  .chart .sw{aspect-ratio:1/1.3;border:1px solid #bbb;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding:0 0 3px;font:inherit;cursor:pointer}
+  .chart div.sw{cursor:default}
+  .chart .sw b{font-size:11px;background:rgba(255,255,255,.85);border-radius:4px;padding:1px 3px;color:#12333b}
   .gauge{height:14px;border-radius:8px;margin:14px 0 6px;position:relative;
          background:linear-gradient(90deg,#e74c3c 0%,#e6842e 16%,#2ecc71 20%,#2ecc71 60%,#e6842e 72%,#e74c3c 100%)}
   .gauge .pin{position:absolute;top:-5px;width:4px;height:24px;background:#12333b;border-radius:2px;transform:translateX(-50%)}
@@ -86,14 +96,19 @@
 <div class="wrap">
   <div class="card">
     <h2>1 · Test the pool water</h2>
-    <div class="stepchip"><span class="on">1 · Fill 10 mL</span><span>2 · Add DPD</span><span>3 · Photograph</span><span>4 · Result</span></div>
+    <!-- The operator selects the reagent; that selection is the ONLY authority over which
+         chart is used. The photo's colour is only ever used to refuse a clear contradiction. -->
+    <div class="seg pinkish" id="reagentTabs" role="tablist" aria-label="Reagent">
+      <button type="button" id="rgDpd" class="on" role="tab" aria-selected="true" onclick="setReagent('dpd')">DPD <small>pink · free chlorine</small></button>
+      <button type="button" id="rgOto" role="tab" aria-selected="false" onclick="setReagent('oto')">OTO <small>yellow · total chlorine</small></button>
+    </div>
+    <div class="stepchip" id="stepChips"></div>
     <div class="sop"><b>How to test</b>
-      <ol>
-        <li>Collect <b>10 mL</b> pool water in a clean clear vial.</li>
-        <li>Add the <b>DPD</b> reagent (tablet/powder for free chlorine); cap and invert until an even <b>pink</b> develops.</li>
-        <li>Hold the vial against a <b>pure white</b> card/paper.</li>
-        <li>Fill the outline with the vial and tap the shutter.</li>
-      </ol>
+      <ol id="sopList"></ol>
+    </div>
+    <div class="sop"><b id="chartTitle">Colour chart</b>
+      <div class="chart" id="chartStrip" aria-label="Colour chart, 0 to 5 mg/L"></div>
+      <div class="note" style="margin-top:6px">The photo is read against this 0–5 mg/L chart (eight steps). No camera? Tap the swatch that matches the vial by eye, or type the card value below.</div>
     </div>
     <label for="poolName">Pool / location <span style="font-weight:400">— name of the pool or point</span></label>
     <input id="poolName" type="text" placeholder="e.g. Community Pool — shallow end" autocomplete="off">
@@ -124,7 +139,7 @@
     <div class="cam-wrap" id="camWrap" style="margin-top:12px">
       <video id="cam" playsinline autoplay muted></video>
       <div class="roi" id="roi"></div>
-      <div class="roi-label" id="roiLabel">Align the pink vial · white background</div>
+      <div class="roi-label" id="roiLabel">Align the vial · white background</div>
     </div>
     <button class="shutter" id="shutter" onclick="captureTest()" aria-label="Capture test photo" disabled></button>
     <div class="note" id="camHint" style="text-align:center">Starting camera…</div>
@@ -132,7 +147,7 @@
       <button onclick="startCam()">↻ Restart camera</button>
       <label>📁 Photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event)"></label>
     </div>
-    <div class="sop" style="margin-top:14px"><b>No camera?</b> Read the comparator card and enter mg/L:
+    <div class="sop" style="margin-top:14px"><b>No camera?</b> Read the comparator card and enter mg/L (or tap a swatch above):
       <div class="btn2" style="margin-top:8px">
         <input id="manualCl" type="number" step="0.1" min="0" placeholder="e.g. 2.0" style="flex:2">
         <button onclick="manualResult()" style="background:var(--teal);color:#fff;border:none;flex:1">Use</button>
@@ -141,7 +156,7 @@
   </div>
 
   <div class="card">
-    <h2>Free chlorine</h2>
+    <h2 id="resultTitle">Free chlorine</h2>
     <div aria-live="polite" aria-atomic="true">
       <div class="bigresult" id="clResult">— <small style="font-size:18px;font-weight:400">mg/L</small></div>
       <div style="text-align:center"><span class="band" id="clBand" style="display:none"></span></div>
@@ -172,7 +187,9 @@
   </div>
 
   <div class="foot">
-    DPD green-channel colorimetry · chlorine = 3.778 × log₁₀(G<sub>white</sub>/G<sub>sample</sub>), R²=0.995.<br>
+    Chart colorimetry: the vial colour, white-balanced against the white card in the photo, is matched to the
+    0–5 mg/L DPD or ortho-tolidine (OTO) colour chart and interpolated between swatches.<br>
+    DPD reads <b>free</b> chlorine; OTO reads <b>total</b> chlorine and can never confirm the free-chlorine standard.<br>
     Pool free-chlorine standard: WHO 1–3 mg/L · US CDC/MAHC ≥1 mg/L (pools). A screening aid — confirm against the comparator card.
   </div>
 </div>
