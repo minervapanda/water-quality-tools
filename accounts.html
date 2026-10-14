@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How Accounts Work</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:#eef2f7;color:#1c2733;line-height:1.55;font-size:15px}
+  header{background:linear-gradient(135deg,#0b335e,#08519c);color:#fff;padding:24px 16px;
+         padding-top:calc(24px + env(safe-area-inset-top))}
+  header h1{margin:0;font-size:21px}
+  header p{margin:6px 0 0;font-size:14px;opacity:.9}
+  .wrap{max-width:720px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid #d6deea;border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  h2{font-size:17px;color:#0b335e;margin:0 0 8px}
+  p{margin:0 0 10px}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid #edf1f6}
+  th{color:#456;font-size:13px}
+  td:first-child{font-weight:600;width:34%}
+  a{color:#08519c}
+  footer{font-size:12px;color:#889;text-align:center;margin:10px 0 24px}
+  @media (max-width:520px){td:first-child{width:auto}th,td{padding:6px 4px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>How accounts work</h1>
+  <p>Aquasafe and PoolCheck: your account, your saved tests, and who can see them</p>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <h2>An account keeps a copy of every test you save, and only you and your organisation's admins can see it.</h2>
+    <p>Create an account inside Aquasafe or PoolCheck with a username and a password; one account works in
+      both apps. From then on, each time you tap <b>Save</b>, the test is kept on your phone as before and also
+      sent to your account. Without an account the apps work exactly as they always did, and tests stay on
+      the phone only.</p>
+    <p><b>No internet? Nothing is lost.</b> The test waits on the phone, the bar at the top says how many
+      are waiting, and they upload the next time the app is open with a connection. The reading goes first
+      and the photo second, so a slow 2G link still delivers the number. A test that has reached your
+      account shows ☁︎ in the history.</p>
+  </div>
+
+  <div class="card">
+    <h2>Who sees what is enforced by the database, not by the app.</h2>
+    <p>Every request carries your identity, and rules inside the database decide what comes back: your own
+      tests, never another collector's. Changing the app or calling the server directly does not get around
+      this. Your organisation's admins see every collector's tests, photos and accounts on a separate admin
+      page that needs a password <i>and</i> a 6-digit code from an authenticator app.</p>
+    <p><b>Your photo is kept exactly as your phone saved it.</b> A fingerprint of the photo is recorded when
+      you save; when an admin opens it, the page checks the fingerprint still matches.</p>
+  </div>
+
+  <div class="card">
+    <h2>The choices behind it, and what they mean for you</h2>
+    <table>
+      <tr><th>What</th><th>Why, and what it means for you</th></tr>
+      <tr><td>Username and password, no email</td><td>Many field staff do not use email. If you forget your password, ask your admin to set a temporary one; there is no email reset.</td></tr>
+      <tr><td>Anyone can create an account</td><td>You can start on day one. A new account sees only its own tests; admins can switch off accounts that should not be there.</td></tr>
+      <tr><td>Tests are never deleted</td><td>A wrong test (wrong site, practice photo) is marked <i>void</i> by an admin with a reason, so the record shows the correction.</td></tr>
+      <tr><td>OTO is never shown as a pass</td><td>OTO measures <i>total</i> chlorine, so it cannot show that free chlorine is enough. A zero OTO still means zero free chlorine.</td></tr>
+      <tr><td>Tests saved before you signed in</td><td>They upload only if you tap “Upload earlier tests”, because a shared phone's old tests may not be yours. They upload without photos.</td></tr>
+      <tr><td>Shared phones</td><td>Sign out before handing the phone over. Tests not yet uploaded stay on the phone and upload when their owner signs in again. “Tested by” follows whoever is signed in.</td></tr>
+      <tr><td>Switched-off accounts</td><td>If an admin switches your account off, the app tells you, and new tests stay on the phone until it is switched back on.</td></tr>
+      <tr><td>Fair-use limits</td><td>Up to 500 tests a day per account, so one account cannot fill the shared free storage. Normal use is far below this.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Your data</h2>
+    <p>What is stored: your username and name, and for each saved test the reading, time, GPS location and
+      the stamped photo. Who sees it: you and your organisation's admins. How long: tests 3 years, photos 12
+      months. Data is held in Supabase's Mumbai (India) region and backed up weekly. To have your account and
+      name erased, ask your admin; the anonymous test numbers are kept as the organisation's water-safety
+      record.</p>
+  </div>
+
+  <div class="card">
+    <h2>Limits worth knowing</h2>
+    <p>These are screening tools, not certified laboratory results. An app installed to the home screen
+      keeps its saved tests most reliably; on iPhone, a site not on the home screen can lose its stored data
+      after 7 days unused, which can cost a photo that had not uploaded yet (the reading itself is kept in
+      the test log). To print an address and map on the photo, the apps look up your location with
+      OpenStreetMap when online.</p>
+  </div>
+
+  <p><a href="index.html">← Back to the field tools</a></p>
+</div>
+<footer>Screening aids — confirm critical readings against the comparator card.</footer>
+</body>
+</html>
