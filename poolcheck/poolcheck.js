@@ -546,7 +546,7 @@ function ackCritical(){
 }
 
 // ---- init ----
-if(window.wqtCloud) wqtCloud.init({app:'poolcheck', kind:'pool_test', logKey:LOGKEY, version:'poolcheck-v8', mount:'wqtBar', onLogChanged:renderHistory});
+if(window.wqtCloud) wqtCloud.init({app:'poolcheck', kind:'pool_test', logKey:LOGKEY, version:'poolcheck-v9', mount:'wqtBar', onLogChanged:renderHistory});
 var _wqtKey='';
 window.addEventListener('wqt-cloud-status', function(e){
   // Redraw the history only when an upload state actually changed, not on every status ping.

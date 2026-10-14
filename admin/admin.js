@@ -217,6 +217,14 @@
       for (var i = 1; i < a.length; i++) if (new Date(a[i].captured_at) - new Date(a[i - 1].captured_at) < 5 * 60e3) { a[i]._repeat = true; a[i - 1]._repeat = true; }
     });
   }
+  // A wrong phone clock, not a late upload: compare the phone's clock at the moment of sending
+  // (body.clientSentAt) with the server's receive time. Older uploads without that field fall back
+  // to the database's coarse flag, which cannot tell an offline wait from a wrong clock.
+  function clockSuspect(x) {
+    var sent = x.body && x.body.clientSentAt ? new Date(x.body.clientSentAt) : null;
+    if (sent && isFinite(sent)) return Math.abs(new Date(x.received_at) - sent) > 10 * 60e3;
+    return !!x.clock_suspect;
+  }
   function site(x) { return String((x.body && (x.body.site || x.body.pool)) || '').trim(); }
   function isTotal(x) { return x.total_cl != null || (x.body && (x.body.species === 'total' || String(x.body.reagent).toLowerCase() === 'oto')); }
   function conc(x) { return x.body ? x.body.conc : null; }
@@ -237,7 +245,7 @@
     rows.forEach(function (x) {
       var b = x.body || {};
       var t = el('td', { cls: 'keep' }, [fmtTime(x.captured_at)]);
-      if (x.clock_suspect) t.appendChild(el('span', { cls: 'flag', title: 'Phone clock differs from upload time by more than 10 minutes. Uploaded ' + fmtTime(x.received_at), text: 'clock?' }));
+      if (clockSuspect(x)) t.appendChild(el('span', { cls: 'flag', title: 'The phone\'s clock was more than 10 minutes off when it uploaded this test. Uploaded ' + fmtTime(x.received_at), text: 'clock?' }));
       var who = people[x.user_id];
       var mg = el('td', {}, [el('b', { text: (b.overRange || b.beyond ? '>' : '') + num(conc(x), 2) })]);
       if (b.manual) mg.appendChild(el('span', { cls: 'flag', title: 'Typed from the colour card, not read from a photo', text: 'typed' }));
@@ -374,7 +382,7 @@
     var lines = [head.join(',')];
     rows.forEach(function (x) {
       var b = x.body || {}, p = people[x.user_id] || {};
-      lines.push([x.id, x.captured_at, x.received_at, x.clock_suspect, p.display_name, p.username, x.app, site(x), b.operator,
+      lines.push([x.id, x.captured_at, x.received_at, clockSuspect(x), p.display_name, p.username, x.app, site(x), b.operator,
         b.reagent, isTotal(x) ? 'total' : 'free', conc(x), x.free_cl, x.total_cl, !!(b.overRange || b.beyond), !!b.manual, b.band,
         b.bandLabel, b.concLo, b.concHi, b.ph, b.temp, x.lat, x.lon, b.acc, x.photo_path, b.photo_sha256, !!x._repeat,
         x.voided_at, x.void_reason, x.app_version].map(csvCell).join(','));
