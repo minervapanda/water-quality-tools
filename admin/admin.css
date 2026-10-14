@@ -5,7 +5,7 @@ header h1{margin:0;font-size:20px}
 header p{margin:4px 0 0;font-size:13px;opacity:.9}
 .who{margin-top:8px;font-size:13px}
 .who button{margin-left:8px}
-.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.wrap{max-width:1440px;margin:0 auto;padding:16px}
 .card{background:#fff;border:1px solid #d6deea;border-radius:12px;padding:14px 16px;margin-bottom:14px}
 #signin{max-width:380px;margin:20px auto}
 #signin h2{margin:0 0 8px;font-size:18px}
@@ -64,3 +64,6 @@ tr.voided td.keep{text-decoration:none}
 #mfa button{margin-top:10px;width:100%}
 .qr{display:block;width:200px;height:200px;margin:8px auto;background:#fff}
 code{font-size:12px;word-break:break-all;background:#f5f8fc;padding:1px 4px;border-radius:4px}
+/* The Collectors table's action buttons wrap instead of pushing the names off-screen. */
+#collectors td:last-child{white-space:normal;min-width:190px}
+#collectors td:last-child button{margin:2px 0}
