@@ -30,7 +30,7 @@
     (kids || []).forEach(function (c) { if (c != null) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return e;
   }
-  function show(id, on) { $(id).classList.toggle('hidden', !on); }
+  function show(id, on) { $(id).classList.toggle('hidden', !on); if (on) $('loading').classList.add('hidden'); }
   function fmtTime(t) {
     if (!t) return '—';
     var d = new Date(t);
