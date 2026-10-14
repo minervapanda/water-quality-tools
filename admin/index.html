@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Strict CSP: only this site's own scripts run, and the page talks only to the Supabase project.
+     An injected script here could read every collector's data, so nothing inline is allowed. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src https://frxlazufoztmabdkmdcl.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Field Data Admin</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header>
+  <h1>Field Data Admin</h1>
+  <p>Every collector's saved chlorine tests from Aquasafe and PoolCheck</p>
+  <div id="who" class="who"></div>
+</header>
+
+<main class="wrap">
+  <section id="signin" class="card hidden">
+    <h2>Admin sign-in</h2>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div id="signinErr" class="err" aria-live="polite"></div>
+    <button id="signinBtn" type="button">Sign in</button>
+    <p class="note">This page is for the organisation's admins. Collectors sign in inside Aquasafe or PoolCheck.
+      Your session lasts until this tab is closed.</p>
+  </section>
+
+  <section id="mfa" class="card hidden">
+    <h2>Two-step sign-in</h2>
+    <div id="mfaEnroll" class="hidden">
+      <p class="note">Admin accounts need a code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy…).
+        Scan this once with the app, then type the 6-digit code it shows.</p>
+      <img id="mfaQr" alt="QR code for the authenticator app" class="qr">
+      <p class="note">Can't scan? Enter this key in the app: <code id="mfaSecret"></code></p>
+    </div>
+    <p id="mfaAsk" class="note hidden">Type the 6-digit code from your authenticator app.</p>
+    <label for="mfaCode">Code</label>
+    <input id="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" spellcheck="false">
+    <div id="mfaErr" class="err" aria-live="polite"></div>
+    <button id="mfaBtn" type="button">Verify</button>
+    <button id="mfaCancel" type="button" class="sec">Cancel</button>
+  </section>
+
+  <section id="app" class="hidden">
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab on" data-tab="results">Results</button>
+      <button type="button" class="tab" data-tab="collectors">Collectors</button>
+    </nav>
+
+    <div id="tab-results">
+      <div id="alerts" class="card alerts"></div>
+      <div class="card filters">
+        <label>Collector <select id="fUser"><option value="">Everyone</option></select></label>
+        <label>App <select id="fApp"><option value="">Both</option><option value="aquasafe">Aquasafe</option><option value="poolcheck">PoolCheck</option></select></label>
+        <label>From <input id="fFrom" type="date"></label>
+        <label>To <input id="fTo" type="date"></label>
+        <label class="chk"><input id="fProblems" type="checkbox"> Only zero / low</label>
+        <label class="chk"><input id="fVoided" type="checkbox"> Show voided</label>
+        <button id="reload" type="button">Apply</button>
+        <button id="csv" type="button" class="sec">Download CSV</button>
+      </div>
+      <div id="summary" class="note"></div>
+      <div class="tablewrap"><table id="results"><thead><tr>
+        <th>Tested (phone clock)</th><th>Collector</th><th>App</th><th>Sample point</th><th>Test</th><th>mg/L</th><th>Verdict in the app</th><th>Place</th><th>Photo</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+      <button id="more" type="button" class="sec hidden">Load older tests</button>
+    </div>
+
+    <div id="tab-collectors" class="hidden">
+      <div class="note">Switching an account off stops its uploads and signs it out on every phone. Its tests stay here. A reset password is a temporary one you hand to the collector in person or by phone.</div>
+      <div class="tablewrap"><table id="collectors"><thead><tr>
+        <th>Name</th><th>Username</th><th>Role</th><th>Tests</th><th>Zero / low</th><th>Last test</th><th>Last upload</th><th>Joined</th><th>Status</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="card mcard">
+    <div id="mBody"></div>
+    <div class="row"><button id="mClose" type="button" class="sec">Close</button></div>
+  </div>
+</div>
+
+<script src="../lib/supabase-2.45.4.min.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

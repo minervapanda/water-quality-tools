@@ -97,6 +97,7 @@
   <p>Swimming-pool chlorine test — pick DPD (free chlorine) or OTO (total chlorine), photograph the vial, get mg/L</p>
 </header>
 <div class="wrap">
+  <div id="wqtBar"></div>
   <div class="card">
     <h2>1 · Which test are you running?</h2>
     <!-- The operator selects the reagent; that selection is the ONLY authority over which
@@ -210,6 +211,8 @@
   <button id="ackBtn" onclick="ackCritical()">✓ I acknowledge</button>
 </div>
 
+<script src="../lib/supabase-2.45.4.min.js"></script>
+<script src="../lib/wqt-cloud.js"></script>
 <script src="poolcheck.js"></script>
 </body>
 </html>
